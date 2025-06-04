@@ -710,3 +710,50 @@ ggplot(long_data, aes(x = log_obs_count, y = log_mcp_area, color = platform)) +
        x = "Log10(Observation Count)",
        y = "Log10(MCP Area in km²)") +
   theme_minimal()
+
+
+
+# Supplemental figure for MCP
+
+plot_data_combined <- long_data %>%
+  filter(!is.na(mcp_area) & !is.na(obs_count)) %>%
+  mutate(
+    Platform = case_when(
+      platform == "iNat_mcp_area_km2" ~ "iNaturalist",
+      platform == "EDDMapS_mcp_area_km2" ~ "EDDMapS"
+    )
+  )
+
+# Create the main plot with overall trend
+mcp_obs_plot <- ggplot(plot_data_combined, aes(x = obs_count, y = mcp_area)) +
+  geom_point(aes(color = Platform), alpha = 0.7, size = 2.5) +
+  geom_smooth(method = "lm", se = TRUE, alpha = 0.2, size = 1.2, color = "black") +
+  scale_x_log10(
+  ) +
+  scale_y_log10(
+    breaks = c(0.1, 1, 10, 100, 1000, 10000),
+    labels = c("0.1", "1", "10", "100", "1000", "10000")
+  ) +
+  scale_color_manual(values = c("EDDMapS" = "#FD7B25", "iNaturalist" = "#A7FD25")) +
+  labs(
+    title = NULL,
+    x = "Number of Observations (log scale)",
+    y = "MCP Area (km²; log scale)",
+    color = "Platform")+
+  theme_classic() +
+  theme(
+    text = element_text(family = "Times New Roman"),
+    plot.title = element_text(size = 14, hjust = 0.5),
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 10),
+    legend.title = element_text(size = 11),
+    legend.text = element_text(size = 10),
+    plot.caption = element_text(size = 9, hjust = 0, margin = margin(t = 15)),
+    legend.position = c(0.15, 0.85),
+    legend.background = element_rect(fill = "white", color = "black", size = 0.3),
+    legend.margin = margin(6, 6, 6, 6)
+  ) +
+  annotation_logticks(sides = "bl")
+
+# Display the plot
+print(mcp_obs_plot)
