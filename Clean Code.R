@@ -27,7 +27,8 @@ filtered_data_iNat <- iNat %>%
   filter(!(species %in% "Desmognathus conanti")) %>%
   filter(!(species %in% "Incilius nebulifer")) %>%
   filter(!(species %in% "Lampropeltis rhombomaculata")) %>%
-  filter(!(species %in% "Lepidochelys kempii"))
+  filter(!(species %in% "Lepidochelys kempii")) %>%
+  filter(!(species %in% "Lithobates virgatipes"))
 
 filtered_data_iNat <- filtered_data_iNat %>%
   dplyr::select(species, decimalLatitude, decimalLongitude, day, month, year) %>%
@@ -63,22 +64,28 @@ filtered_data_eddmaps <- filtered_data_eddmaps %>%
   filter(!is.na(Latitude) & !is.na(Longitude))
 
 filtered_data_eddmaps <- filtered_data_eddmaps %>%
-    mutate(SciName = case_when(
-      SciName == "Chelonoidis carbonaria" ~ "Chelonoidis carbonarius",
-      SciName == "Leiocephalus carinatus armouri" ~ "Leiocephalus carinatus",
-      SciName == "Sphaerodactylus argus argus" ~ "Sphaerodactylus argus",
-      SciName == "Anolis equestris persparsus" ~ "Anolis equestris",
-      SciName == "Python molurus ssp. bivittatus" ~ "Python bivittatus",
-      SciName == "Boa constrictor constrictor"~ "Boa constrictor",
-      SciName == "Anolis cristatellus cristatellus" ~ "Anolis cristatellus",
-      SciName == "Bufo marinus" ~ "Rhinella marina",
-      SciName == "Geochelone sulcata" ~ "Centrochelys sulcata",
-      SciName == "Geochelone carbonaria" ~ "Chelonoidis carbonarius",
-      SciName == "Chelonoidis denticulatus" ~ "Chelonoidis denticulata",
-      SciName == "Ramphotyphlops braminus"~ "Indotyphlops braminus",
-      SciName == "Lygodactylus luteopicturatus" ~ "Lygodactylus picturatus",
-      TRUE ~ SciName  # Keep all other names unchanged
-    ))
+  mutate(SciName = case_when(
+    SciName == "Chelonoidis carbonaria" ~ "Chelonoidis carbonarius",
+    SciName == "Leiocephalus carinatus armouri" ~ "Leiocephalus carinatus",
+    SciName == "Sphaerodactylus argus argus" ~ "Sphaerodactylus argus",
+    SciName == "Anolis equestris persparsus" ~ "Anolis equestris",
+    SciName == "Python molurus ssp. bivittatus" ~ "Python bivittatus",
+    SciName == "Boa constrictor constrictor"~ "Boa constrictor",
+    SciName == "Anolis cristatellus cristatellus" ~ "Anolis cristatellus",
+    SciName == "Bufo marinus" ~ "Rhinella marina",
+    SciName == "Geochelone sulcata" ~ "Centrochelys sulcata",
+    SciName == "Geochelone carbonaria" ~ "Chelonoidis carbonarius",
+    SciName == "Chelonoidis denticulatus" ~ "Chelonoidis denticulata",
+    SciName == "Ramphotyphlops braminus"~ "Indotyphlops braminus",
+    SciName == "Lygodactylus luteopicturatus" ~ "Lygodactylus picturatus",
+    SciName == "Chelonoidis denticulata" ~ "Chelonoidis denticulatus",
+    SciName == "Leiocephalus schreibersii schreibersii" ~ "Leiocephalus schreibersii",
+    SciName == "Leiolepis belliana belliana" ~ "Leiolepis belliana",
+    SciName == "Litoria caerulea" ~ "Ranoidea caerulea",
+    SciName == "Epicrates cenchria cenchria" ~ "Epicrates cenchria",
+    SciName == "Epicrates cenchria maurus" ~ "Epicrates cenchria",
+    TRUE ~ SciName  # Keep all other names unchanged
+  ))
 
 ### Seperate the date stamp on Eddmaps
 filtered_data_eddmaps <- filtered_data_eddmaps %>%
@@ -155,7 +162,8 @@ Fig_1_Map <- ggplot(fl_counties) +
   facet_wrap(~source, labeller = labeller(source = source_labels)) +
   theme_classic() +  
   theme(
-    axis.text.x = element_text(size = 6),
+    axis.text.x = element_text(size = 11),
+    axis.text.y = element_text(size = 11),
     strip.text = element_text(size = 9.5, face = "bold"),  # Make the facet titles bold and larger
     panel.spacing = unit(1.5, "cm"),  # Increase the space between panels
     plot.margin = margin(0.5, 0.5, 0.5, 0.5, "cm")  # Add margins around the entire plot
@@ -202,7 +210,9 @@ Fig_1_Line <- ggplot(iNatandEddMap_matched, aes(x=inat_number_of_obs, y=eddmaps_
   labs(x = "iNaturalist observations",
        y = "EDDMapS observations",
        color = "Species") +
-  theme_classic()
+  theme_classic() +
+  theme(axis.text.x = element_text(size = 14),
+        axis.text.y = element_text(size = 14))
 
 Fig_1_Line
 
@@ -211,6 +221,147 @@ model2_improved <- MASS::glm.nb(eddmaps_number_of_obs ~ inat_number_of_obs,
                                 data = iNatandEddMap_matched,
                                 control = glm.control(maxit = 100))
 summary(model2_improved)
+
+
+
+
+
+
+
+# Create a list of all unique species from both datasets
+all_species <- unique(c(filtered_data_iNat$species, filtered_data_eddmaps$species))
+
+# Create a new dataframe to store presence information
+presence_df <- data.frame(Species = all_species,
+                          iNaturalist_Present = NA,
+                          EDDMapS_Present = NA)
+
+# Check presence in iNaturalist dataset
+presence_df$iNaturalist_Present <- ifelse(presence_df$Species %in% filtered_data_iNat_florida$species, "Yes", "No")
+
+# Check presence in EDDMapS dataset
+presence_df$EDDMapS_Present <- ifelse(presence_df$Species %in% filtered_data_eddmaps_florida$species, "Yes", "No")
+
+# Sort alphabetically by species name
+presence_df <- presence_df[order(presence_df$Species), ]
+
+# Print the first few rows to verify
+head(presence_df)
+
+# Show the total number of species
+cat("Total number of unique species:", nrow(presence_df), "\n")
+
+# Count species present in each dataset
+cat("Species present in iNaturalist:", sum(presence_df$iNaturalist_Present == "Yes"), "\n")
+cat("Species present in EDDMapS:", sum(presence_df$EDDMapS_Present == "Yes"), "\n")
+
+# Count species present in both datasets
+cat("Species present in both datasets:", 
+    sum(presence_df$iNaturalist_Present == "Yes" & presence_df$EDDMapS_Present == "Yes"), "\n")
+
+# Count species present in only one dataset
+cat("Species present only in iNaturalist:", 
+    sum(presence_df$iNaturalist_Present == "Yes" & presence_df$EDDMapS_Present == "No"), "\n")
+cat("Species present only in EDDMapS:", 
+    sum(presence_df$iNaturalist_Present == "No" & presence_df$EDDMapS_Present == "Yes"), "\n")
+
+# Save the dataframe to a CSV file
+write.csv(presence_df, "species_presence_comparison.csv", row.names = FALSE)
+
+
+
+iNatandEddMap_matched <- iNatandEddMap_matched %>%
+  mutate(highlight_species = case_when(
+    species == "Iguana iguana" ~ "Iguana iguana",
+    species == "Salvator merianae" ~ "Salvator merianae",
+    species == "Leiocephalus carinatus" ~ "Leiocephalus carinatus",
+    TRUE ~ "Other species"
+  ))
+
+
+# Then create the plot with highlighted species
+Fig_1_Line_species <- ggplot(iNatandEddMap_matched, aes(x=inat_number_of_obs, y=eddmaps_number_of_obs)) +
+  # Add background points first (grey for "Other species")
+  geom_point(data = subset(iNatandEddMap_matched, highlight_species == "Other species"), 
+             color = "grey80", alpha = 0.5) +
+  # Add highlighted species with different colors and slightly larger size
+  geom_point(data = subset(iNatandEddMap_matched, highlight_species != "Other species"), 
+             aes(color = highlight_species), size = 3) +
+  # Add text labels for the highlighted species
+  scale_x_log10() +
+  scale_y_log10() +
+  geom_smooth(method = "lm", color = "black") +
+  scale_color_manual(values = c(
+    "Iguana iguana" = "red",
+    "Salvator merianae" = "blue",
+    "Leiocephalus carinatus" = "green4"
+  )) +
+  labs(x = "iNaturalist observations",
+       y = "EDDMapS observations",
+       color = "Species") +
+  theme_classic() +
+  theme(legend.position = "bottom")
+
+# Print the plot
+Fig_1_Line_species
+
+
+
+# Pie chart code
+
+presence <- read.csv("species_presence_comparison.csv")
+presence <- presence %>%
+  filter(!(Species %in% "Basiliscus spp.")) %>%
+  filter(!(Species %in% "Iguana spp.")) %>%
+  filter(!(Species %in% "Leiocephalus spp.")) %>%
+  filter(!(Species %in% "Python spp.")) %>%
+  filter(!(Species %in% "Trioceros spp.")) %>%
+  rename(iNaturalist = iNaturalist_Present) %>%
+  rename(EDDMapS = EDDMapS_Present)
+
+
+# Create the comparison categories
+presence_summary <- presence %>%
+  mutate(
+    Category = case_when(
+      iNaturalist == "Yes" & EDDMapS == "Yes" ~ "Both platforms",
+      iNaturalist == "Yes" & EDDMapS == "No" ~ "iNaturalist only",
+      iNaturalist == "No" & EDDMapS == "Yes" ~ "EDDMapS only",
+      TRUE ~ "Neither" # This would be species not observed on either platform
+    )
+  ) %>%
+  count(Category) %>%
+  filter(Category != "Neither") # Remove if you don't want to show species not on either platform
+
+# Create the pie chart
+ggplot(presence_summary, aes(x = "", y = n, fill = Category)) +
+  geom_col(width = 1) +
+  coord_polar("y", start = 0) +
+  scale_fill_manual(values = c(
+    "Both platforms" = "#7FB069",
+    "iNaturalist only" = "#A7FD25", 
+    "EDDMapS only" = "#FD7B25"
+  )) +
+  theme_void() +
+  labs(
+    title = NULL,
+    fill = "Platform"
+  ) +
+  theme(
+    text = element_text(family = "Times New Roman"),
+    plot.title = element_text(hjust = 0.5, size = 14),
+    legend.text = element_text(size = 12)
+  ) +
+  geom_text(aes(label = paste0(n, "\n(", round(n/sum(n)*100, 1), "%)")), 
+            position = position_stack(vjust = 0.5),
+            size = 6)
+
+
+
+
+
+
+
 
 
 
@@ -233,7 +384,7 @@ iNat_spatial <- iNat %>%
   st_as_sf(coords=c("decimalLongitude", "decimalLatitude"), crs=4326)
 
 #Load the population density raster file.
-pop_density <- raster("Data/fl_pop_density.tif")
+pop_density <- raster("fl_pop_density.tif")
 
 #Check the coordinate reference system (CRS) of both datasets.
 st_crs(iNat_spatial)
@@ -252,7 +403,7 @@ iNat_spatial_defined <- iNat_spatial %>%
   dplyr::select(PopDensity, Urbanization, species, eventDate, coordinateUncertaintyInMeters)
 
 
-EDDmaps <- read_csv("Data/EDDMapS_observations.csv")
+EDDmaps <- read_csv("EDDMapS_observations.csv")
 
 # Remove rows with missing coordinates
 EDDmaps_clean <- EDDmaps %>%
@@ -391,6 +542,12 @@ filtered_data_eddmaps2 <- filtered_data_eddmaps2 %>%
     SciName == "Chelonoidis denticulatus" ~ "Chelonoidis denticulata",
     SciName == "Ramphotyphlops braminus"~ "Indotyphlops braminus",
     SciName == "Lygodactylus luteopicturatus" ~ "Lygodactylus picturatus",
+    SciName == "Chelonoidis denticulata" ~ "Chelonoidis denticulatus",
+    SciName == "Leiocephalus schreibersii schreibersii" ~ "Leiocephalus schreibersii",
+    SciName == "Leiolepis belliana belliana" ~ "Leiolepis belliana",
+    SciName == "Litoria caerulea" ~ "Ranoidea caerulea",
+    SciName == "Epicrates cenchria cenchria" ~ "Epicrates cenchria",
+    SciName == "Epicrates cenchria maurus" ~ "Epicrates cenchria",
     TRUE ~ SciName  # Keep all other names unchanged
   ))
 
@@ -423,7 +580,8 @@ filtered_data_iNat2 <- iNat2 %>%
   filter(!(species %in% "Desmognathus conanti")) %>%
   filter(!(species %in% "Incilius nebulifer")) %>%
   filter(!(species %in% "Lampropeltis rhombomaculata")) %>%
-  filter(!(species %in% "Lepidochelys kempii"))
+  filter(!(species %in% "Lepidochelys kempii")) %>%
+  filter(!(species %in% "Lithobates virgatipes"))
 
 
 
