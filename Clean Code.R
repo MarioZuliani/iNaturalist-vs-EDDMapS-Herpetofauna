@@ -12,10 +12,10 @@ library(sf)
 library(tigris)
 library(raster)
 
-iNaturalist_introduced <- read.csv("iNaturalist_introduced.csv")
-eddmaps_introduced_clean <- read.csv("/Users/mario/Desktop/iNat-vs.-Eddmaps/Data/Data_MZ/eddmaps_introduced.csv")
+iNaturalist_introduced <- read.csv("Data/iNaturalist_introduced.csv")
+eddmaps_introduced_clean <- read.csv("Data/eddmaps_introduced.csv")
 # iNat cleanup
-iNat <- readRDS("/Users/mario/Desktop/iNat-vs.-Eddmaps/Data/iNat_herp_data.RDS")
+iNat <- readRDS("Data/iNat_herp_data.RDS")
 filtered_data_iNat <- iNat %>%
   filter(species %in% iNaturalist_introduced$scientific_name) %>%
   filter(!(species %in% "Anaxyrus fowleri")) %>%
@@ -384,7 +384,7 @@ iNat_spatial <- iNat %>%
   st_as_sf(coords=c("decimalLongitude", "decimalLatitude"), crs=4326)
 
 #Load the population density raster file.
-pop_density <- raster("fl_pop_density.tif")
+pop_density <- raster("Data/fl_pop_density.tif")
 
 #Check the coordinate reference system (CRS) of both datasets.
 st_crs(iNat_spatial)
@@ -403,7 +403,7 @@ iNat_spatial_defined <- iNat_spatial %>%
   dplyr::select(PopDensity, Urbanization, species, eventDate, coordinateUncertaintyInMeters)
 
 
-EDDmaps <- read_csv("EDDMapS_observations.csv")
+EDDmaps <- read_csv("Data/EDDMapS_observations.csv")
 
 # Remove rows with missing coordinates
 EDDmaps_clean <- EDDmaps %>%
@@ -567,7 +567,7 @@ filtered_data_eddmaps_florida2 <- filtered_data_eddmaps2 %>%
          Longitude >= -87.634938 & Longitude <= -80.031362)
 
 # Process iNaturalist data
-iNat2 <- readRDS("/Users/mario/Desktop/iNat-vs.-Eddmaps/Data/iNat_herp_data.RDS")
+iNat2 <- readRDS("Data/iNat_herp_data.RDS")
 
 filtered_data_iNat2 <- iNat2 %>%
   filter(species %in% iNaturalist_introduced$scientific_name) %>%
