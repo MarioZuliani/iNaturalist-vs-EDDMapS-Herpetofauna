@@ -309,7 +309,7 @@ Fig_1_Line_species
 
 # Pie chart code
 
-presence <- read.csv("species_presence_comparison.csv")
+presence <- read.csv("Data/species_presence_comparison.csv")
 presence <- presence %>%
   filter(!(Species %in% "Basiliscus spp.")) %>%
   filter(!(Species %in% "Iguana spp.")) %>%
