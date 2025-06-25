@@ -30,6 +30,7 @@ filtered_data_iNat <- iNat %>%
   filter(!(species %in% "Lepidochelys kempii")) %>%
   filter(!(species %in% "Lithobates virgatipes"))
 
+
 filtered_data_iNat <- filtered_data_iNat %>%
   dplyr::select(species, decimalLatitude, decimalLongitude, day, month, year) %>%
   filter(!is.na(decimalLatitude) & !is.na(decimalLongitude)) ### There are no instances of Lat or Long being NAs
@@ -52,7 +53,7 @@ filtered_data_iNat_florida <- filtered_data_iNat %>%
   dplyr::select(-year)
 
 #EDDMapS
-eddmaps <- read.csv("/Users/mario/Desktop/iNat-vs.-Eddmaps/Data/EDDmapS_observations.csv") ### Need to clean up the Eddmaps data.
+eddmaps <- read.csv("Data/EDDmapS_observations.csv") ### Need to clean up the Eddmaps data.
 
 ### Run to pull all introduced species from the raw eddmaps data to the cleaned species list we have made.
 filtered_data_eddmaps <- eddmaps %>%
@@ -84,6 +85,10 @@ filtered_data_eddmaps <- filtered_data_eddmaps %>%
     SciName == "Litoria caerulea" ~ "Ranoidea caerulea",
     SciName == "Epicrates cenchria cenchria" ~ "Epicrates cenchria",
     SciName == "Epicrates cenchria maurus" ~ "Epicrates cenchria",
+    SciName == "Anolis coelestinus" ~ "Anolis cristatellus",
+    SciName == "Cosymbotus platyurus" ~ "Hemidactylus platyurus",
+    SciName == "Norops garmani" ~ "Anolis garmani",
+    SciName == "Corallus hortulanus" ~ "Corallus hortulana",
     TRUE ~ SciName  # Keep all other names unchanged
   ))
 
