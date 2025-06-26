@@ -14,6 +14,7 @@ library(raster)
 
 iNaturalist_introduced <- read.csv("Data/iNaturalist_introduced.csv")
 eddmaps_introduced_clean <- read.csv("Data/eddmaps_introduced.csv")
+presence <- read.csv("Data/species_presence_comparison.csv")
 # iNat cleanup
 iNat <- readRDS("Data/iNat_herp_data.RDS")
 filtered_data_iNat <- iNat %>%
@@ -41,7 +42,7 @@ filtered_data_iNat <- filtered_data_iNat %>%
 
 filtered_data_iNat <- filtered_data_iNat %>%
   mutate(Year = as.numeric(year)) %>%  # Convert Year to numeric
-  filter(Year >= 2010 & Year <= 2023) %>% # Filter for years 2010-2023
+  filter(Year >= 2010 & Year <= 2024) %>% # Filter for years 2010-2023
   mutate(source = "iNaturalist") %>%
   rename(Month = month, Day = day) %>%
   mutate(Month = as.numeric(Month), Day = as.numeric(Day), Year = as.numeric(Year))
@@ -89,6 +90,7 @@ filtered_data_eddmaps <- filtered_data_eddmaps %>%
     SciName == "Cosymbotus platyurus" ~ "Hemidactylus platyurus",
     SciName == "Norops garmani" ~ "Anolis garmani",
     SciName == "Corallus hortulanus" ~ "Corallus hortulana",
+    SciName == "Sphaerodactylus elegans elegans" ~ "Sphaerodactylus elegans",
     TRUE ~ SciName  # Keep all other names unchanged
   ))
 
@@ -98,7 +100,7 @@ filtered_data_eddmaps <- filtered_data_eddmaps %>%
 
 filtered_data_eddmaps <- filtered_data_eddmaps %>%
   mutate(Year = as.numeric(Year)) %>%  # Convert Year to numeric
-  filter(Year >= 2010 & Year <= 2023) %>% # Filter for years 2010-2023
+  filter(Year >= 2010 & Year <= 2024) %>% # Filter for years 2010-2023
   mutate(source = "EDDMapS") %>%
   mutate(Month = as.numeric(Month), Day = as.numeric(Day), Year = as.numeric(Year)) %>%
   rename(species = SciName)
@@ -203,6 +205,9 @@ iNatandEddMap_matched <- iNatandEddMap_matched %>%
     TRUE ~ "Other species"
   ))
 
+#write.csv(iNatandEddMap_matched, "combined.csv")
+
+
 # Then modify your plot
 Fig_1_Line <- ggplot(iNatandEddMap_matched, aes(x=inat_number_of_obs, y=eddmaps_number_of_obs)) +
   # Add background points first
@@ -271,7 +276,7 @@ cat("Species present only in EDDMapS:",
     sum(presence_df$iNaturalist_Present == "No" & presence_df$EDDMapS_Present == "Yes"), "\n")
 
 # Save the dataframe to a CSV file
-write.csv(presence_df, "species_presence_comparison.csv", row.names = FALSE)
+#write.csv(presence_df, "species_presence_comparison.csv", row.names = FALSE)
 
 
 
