@@ -206,7 +206,7 @@ iNatandEddMap_matched <- iNatandEddMap_matched %>%
   ))
 
 #write.csv(iNatandEddMap_matched, "combined.csv")
-iNatandEddMap_matched <- read.csv("combined.csv")
+iNatandEddMap_matched <- read.csv("Data/combined.csv")
 
 # Then modify your plot
 Fig_1_Line <- ggplot(iNatandEddMap_matched, aes(x=inat_number_of_obs, y=eddmaps_number_of_obs)) +
