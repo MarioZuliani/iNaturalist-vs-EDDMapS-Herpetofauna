@@ -558,6 +558,7 @@ filtered_data_eddmaps2 <- filtered_data_eddmaps2 %>%
     SciName == "Litoria caerulea" ~ "Ranoidea caerulea",
     SciName == "Epicrates cenchria cenchria" ~ "Epicrates cenchria",
     SciName == "Epicrates cenchria maurus" ~ "Epicrates cenchria",
+    SciName == "Trachemys scripta elegans" ~ "Trachemys scripta elegans",
     TRUE ~ SciName  # Keep all other names unchanged
   ))
 
