@@ -226,13 +226,10 @@ Fig_1_Line <- ggplot(iNatandEddMap_matched, aes(x=inat_number_of_obs, y=eddmaps_
 
 Fig_1_Line
 
-# Analysis! If overdispersion is present, use negative binomial.
-model2_improved <- MASS::glm.nb(eddmaps_number_of_obs ~ inat_number_of_obs,
-                                data = iNatandEddMap_matched,
-                                control = glm.control(maxit = 100))
-summary(model2_improved)
+model_nb_log <- MASS::glm.nb(eddmaps_number_of_obs ~ log(inat_number_of_obs + 1),
+                             data = iNatandEddMap_matched)
 
-
+summary(model_nb_log)
 
 
 
