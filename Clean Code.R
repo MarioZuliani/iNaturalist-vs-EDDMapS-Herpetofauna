@@ -221,8 +221,8 @@ Fig_1_Line <- ggplot(iNatandEddMap_matched, aes(x=inat_number_of_obs, y=eddmaps_
        y = "EDDMapS observations",
        color = "Species") +
   theme_classic() +
-  theme(axis.text.x = element_text(size = 14),
-        axis.text.y = element_text(size = 14))
+  theme(axis.text.x = element_text(size = 11),
+        axis.text.y = element_text(size = 11))
 
 Fig_1_Line
 
