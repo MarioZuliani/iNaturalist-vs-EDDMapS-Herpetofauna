@@ -226,13 +226,17 @@ Fig_1_Line <- ggplot(iNatandEddMap_matched, aes(x=inat_number_of_obs, y=eddmaps_
 
 Fig_1_Line
 
+# comparison of iNaturalist and eddmaps counts
 model_nb_log <- MASS::glm.nb(eddmaps_number_of_obs ~ log(inat_number_of_obs + 1),
                              data = iNatandEddMap_matched)
 
 summary(model_nb_log)
 
 
-
+# spearman's correlation
+cor.test(iNatandEddMap_matched$inat_number_of_obs,
+         iNatandEddMap_matched$eddmaps_number_of_obs,
+         method = "spearman")
 
 
 # Create a list of all unique species from both datasets
@@ -465,7 +469,23 @@ model_gaussian <- glm(LogPopDensity ~ Source,
 summary(model_gaussian)
 
 
+# model the data
+# make source a binary variable
+PopData_combined$Source <- factor(PopData_combined$Source)
 
+hist(PopData_combined$PopDensity)
+hist(PopData_combined$LogPopDensity)
+
+# fit a logistic regression
+# Using log-transformed population density
+model_logit <- glm(Source ~ LogPopDensity, 
+                   data = PopData_combined, 
+                   family = binomial)
+
+summary(model_logit)
+
+# model check
+plot(model_logit)
 
 
 # Calculate comprehensive statistics for both original and log-transformed data
