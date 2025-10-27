@@ -11,6 +11,9 @@ library(tidyr)
 library(sf)
 library(tigris)
 library(raster)
+library(purrr)
+library(patchwork)
+library(scales)
 
 iNaturalist_introduced <- read.csv("Data/iNaturalist_introduced.csv")
 eddmaps_introduced_clean <- read.csv("Data/eddmaps_introduced.csv")
@@ -370,19 +373,201 @@ ggplot(presence_summary, aes(x = "", y = n, fill = Category)) +
 
 
 
+## Check for species traits ------------------------------------------------
+
+# read in species trait data for reptiles
+trait_data_rep <- read_csv("Data/ReptTraits dataset v1-2_data.csv")
+
+# let's see how many species we can gather trait data on from our dataset
+trait_inat_eddmaps <- left_join(iNatandEddMap_matched, trait_data_rep, by=c("species"="Species"))
+
+# let's get trait data for amphibians
+trait_data_amp <- read_csv("Data/AmphiBIO_v1.csv")
+
+# let's see how many species we can gather trait data on from our dataset
+trait_inat_eddmaps <- left_join(trait_inat_eddmaps, trait_data_amp, by=c("species"="Species"))
+
+# let's repeat the analysis above while incorporating some species traits
+# the traits we would be most interested in are: habitat type, active time, maximum body mass
+# let's filter out the other data types
+trait_inat_eddmaps_prep <- trait_inat_eddmaps %>%
+  dplyr::select(species, inat_number_of_obs, eddmaps_number_of_obs, 
+         `Habitat type`, `Active time`, `Maximum body mass (g)`,
+         Diu, Noc, Crepu, Body_mass_g, Fos, Ter, Aqu, Arb)
+
+trait_inat_eddmaps_clean <- trait_inat_eddmaps_prep %>%
+  mutate(
+    `Active time` = case_when(
+      rowSums(across(c(Diu, Noc, Crepu), ~ . == 1), na.rm = TRUE) > 1 ~ "Cathemeral",
+      Diu == 1 ~ "Diurnal",
+      Noc == 1 ~ "Nocturnal",
+      Crepu == 1 ~ "Crepuscular",
+      TRUE ~ `Active time`  # keeps NA if none apply
+    )
+  ) %>%
+  mutate(
+    `Maximum body mass (g)` = coalesce(Body_mass_g, `Maximum body mass (g)`)
+  )
+
+# what percentage of data do we now have trait data for?
+nrow(trait_inat_eddmaps %>% filter(complete.cases(Genus)))/nrow(trait_inat_eddmaps)*100
+# 88.6%
+nrow(trait_inat_eddmaps_clean %>% filter(!is.na(`Habitat type`) | !is.na(`Active time`) | !is.na(`Maximum body mass (g)`) |
+                                           !is.na(Fos) | !is.na(Ter) | !is.na(Aqu) | !is.na(Arb)))/
+  nrow(trait_inat_eddmaps_clean)
+
+# how many amphibian species do we have habitat data on?
+nrow(trait_inat_eddmaps_clean %>% filter(!is.na(Fos) | !is.na(Ter) | !is.na(Aqu) | !is.na(Arb)))
+# only 6, so let's focus the habitat analysis only on reptiles
+
+# now, we will use our earlier spearman's rank correlation to assess these different categories
+
+# let's start with active time
+# how many observations do we have for each "active time" 
+trait_inat_eddmaps_clean %>%
+  group_by(`Active time`) %>%
+  summarise(n=n())
+# The only categories we will use are cathemeral, diurnal, and nocturnal
+
+# cathemeral
+cathemeral <- trait_inat_eddmaps_clean %>%
+  filter(`Active time`=="Cathemeral")
+cor.test(cathemeral$inat_number_of_obs,
+         cathemeral$eddmaps_number_of_obs,
+         method = "spearman")
+
+# diurnal
+diurnal <- trait_inat_eddmaps_clean %>%
+  filter(`Active time`=="Diurnal")
+cor.test(diurnal$inat_number_of_obs,
+         diurnal$eddmaps_number_of_obs,
+         method = "spearman")
+
+# nocturnal
+nocturnal <- trait_inat_eddmaps_clean %>%
+  filter(`Active time`=="Nocturnal")
+cor.test(nocturnal$inat_number_of_obs,
+         nocturnal$eddmaps_number_of_obs,
+         method = "spearman")
 
 
+# get log ratio of iNaturalist observations
+trait_inat_eddmaps_clean <- trait_inat_eddmaps_clean %>%
+  mutate(
+    inat_prop = inat_number_of_obs / sum(inat_number_of_obs, na.rm = TRUE),
+    eddmaps_prop = eddmaps_number_of_obs / sum(eddmaps_number_of_obs, na.rm = TRUE),
+    prop_ratio = log10(inat_prop / eddmaps_prop)
+  )
 
+hist(trait_inat_eddmaps_clean$prop_ratio)
 
+active_time_glm <- glm(prop_ratio ~ `Active time`, 
+                       data=trait_inat_eddmaps_clean %>% filter(complete.cases(`Active time`), `Active time`!="Crepuscular"), 
+                       family = gaussian)
+summary(active_time_glm)
 
+(activity <- ggplot(trait_inat_eddmaps_clean %>% filter(complete.cases(`Active time`), `Active time`!="Crepuscular"), aes(x=`Active time`, y=prop_ratio)) +
+  geom_boxplot() +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
+  labs(y="Log-proportional ratio of observations\n(iNaturalist / EDDMapS)",
+       title="A.") + 
+  theme_classic(base_size = 14))
 
+# log-transform body size since itis highly skewed
+trait_inat_eddmaps_clean$log_body_size <- log10(trait_inat_eddmaps_clean$`Maximum body mass (g)`)
 
+body_mass_glm <- glm(prop_ratio ~ log_body_size, data=trait_inat_eddmaps_clean, family = gaussian)
+summary(body_mass_glm)
 
+(body_size <- ggplot(trait_inat_eddmaps_clean, aes(x = `Maximum body mass (g)`, y = prop_ratio)) +
+  geom_point() +
+  scale_x_log10(labels = trans_format("log10", math_format(10^.x))) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
+  geom_smooth(method = "lm", se = TRUE, color = "blue") +
+  labs(y = "Log-proportional ratio of observations\n(iNaturalist / EDDMapS)",
+       title="B.") + 
+  theme_classic(base_size = 14))
 
+# now let's do this for habitat type
+# this column is going to have to be restructured
+# Get all unique habitat types
+habitats <- trait_inat_eddmaps_clean %>%
+  filter(!is.na(`Habitat type`)) %>%
+  pull(`Habitat type`) %>%
+  str_split("/") %>% 
+  unlist() %>% 
+  str_trim() %>%
+  unique()
 
+# Create TRUE/FALSE columns
+trait_habitat <- trait_inat_eddmaps_clean %>%
+  bind_cols(
+    lapply(habitats, function(hab) {
+      ifelse(
+        is.na(trait_inat_eddmaps_clean$`Habitat type`),
+        NA,
+        str_detect(trait_inat_eddmaps_clean$`Habitat type`, fixed(hab))
+      )
+    }) %>% setNames(habitats)
+  )
 
+# Check result
+head(trait_habitat)
 
+# check for correlations
+# Select only habitat columns
+habitat_cols <- trait_habitat %>% dplyr::select(Savanna:Desert)
 
+# Compute correlation matrix
+cor_matrix <- cor(habitat_cols, use = "pairwise.complete.obs")
+cor_matrix
+# there does not appear to be concerning correlations
+
+# let's determine which habitats have more than a handful of species occupying them
+# Count how many species occur in each habitat
+habitat_counts <- trait_habitat %>%
+  dplyr::select(all_of(habitats)) %>%  # your TRUE/FALSE habitat columns
+  summarise(across(everything(), ~sum(. == TRUE, na.rm = TRUE))) %>%
+  pivot_longer(everything(), names_to = "habitat", values_to = "n_species")
+
+# Habitats with at least 5 species
+habitats_filtered <- habitat_counts %>%
+  filter(n_species >= 5) %>%
+  pull(habitat)
+habitats_filtered
+
+# I am also going to remove deser
+
+habitat_glm <- glm(prop_ratio ~ Savanna + Forest + Shrubland + Grassland + Wetlands + Rocky, 
+                   data=trait_habitat, family = gaussian)
+summary(habitat_glm)
+
+# Gather habitats into long format
+trait_habitat_long <- trait_habitat %>%
+  dplyr::select(species, prop_ratio, all_of(habitats)) %>%
+  pivot_longer(
+    cols = habitats_filtered[-7],
+    names_to = "Habitat",
+    values_to = "Present"
+  ) %>%
+  filter(Present == TRUE)  # only include habitats the species occupies
+
+# Plot
+(habitat <- ggplot(trait_habitat_long, aes(x = Habitat, y = prop_ratio)) +
+  geom_boxplot() +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +  # reference line
+  labs(
+    y = "Log-proportional ratio of observations\n(iNaturalist / EDDMapS)",
+    x = "Habitat type",
+    title="C."
+  ) +
+  theme_classic(base_size = 14) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)))
+
+# use patchwork to make a nice, combined figure
+(activity + body_size) / habitat
+
+ggsave("Figures/species_traists_platform.jpeg", height=8, width=8, units="in")
 
 # ==============================================================================
 
