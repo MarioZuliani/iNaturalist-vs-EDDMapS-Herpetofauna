@@ -461,23 +461,63 @@ trait_inat_eddmaps_clean <- trait_inat_eddmaps_clean %>%
 
 hist(trait_inat_eddmaps_clean$prop_ratio)
 
-active_time_glm <- glm(prop_ratio ~ `Active time`, 
-                       data=trait_inat_eddmaps_clean %>% filter(complete.cases(`Active time`), `Active time`!="Crepuscular"), 
-                       family = gaussian)
-summary(active_time_glm)
-
+# examine raw data
 (activity <- ggplot(trait_inat_eddmaps_clean %>% filter(complete.cases(`Active time`), `Active time`!="Crepuscular"), aes(x=`Active time`, y=prop_ratio)) +
-  geom_boxplot() +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
-  labs(y="Log-proportional ratio of observations\n(iNaturalist / EDDMapS)",
-       title="A.") + 
+    geom_boxplot() +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
+    labs(y="Log-proportional ratio of observations\n(iNaturalist / EDDMapS)",
+         title="A.") + 
+    theme_classic(base_size = 14))
+
+# run three seperate GLM for each activity pattern to see if there is a significant difference between the platforms
+glm_diurnal <- glm(prop_ratio ~ 1, data = subset(trait_inat_eddmaps_clean, `Active time` == "Diurnal"))
+summary(glm_diurnal)
+
+glm_nocturnal <- glm(prop_ratio ~ 1, data = subset(trait_inat_eddmaps_clean, `Active time` == "Nocturnal"))
+summary(glm_nocturnal)
+
+glm_cathemeral <- glm(prop_ratio ~ 1, data = subset(trait_inat_eddmaps_clean, `Active time` == "Cathemeral"))
+summary(glm_cathemeral)
+
+# Get estimates
+coefs <- tibble(
+  Activity = c("Diurnal", "Nocturnal", "Cathemeral"),
+  Estimate = c(coef(glm_diurnal), coef(glm_nocturnal), coef(glm_cathemeral)),
+  SE = c(summary(glm_diurnal)$coefficients[,"Std. Error"],
+         summary(glm_nocturnal)$coefficients[,"Std. Error"],
+         summary(glm_cathemeral)$coefficients[,"Std. Error"])
+)
+
+# Compute 95% confidence intervals
+coefs <- coefs %>%
+  mutate(
+    lower = Estimate - 1.96*SE,
+    upper = Estimate + 1.96*SE
+  )
+
+# Add a column for color
+coefs <- coefs %>%
+  mutate(color = ifelse(Activity == "Nocturnal", "blue", "black"))
+
+# Coefficient plot with Nocturnal in blue
+(coef_activity <- ggplot(coefs, aes(x = Activity, y = Estimate, color = color)) +
+  geom_point(size = 4) +
+  geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.2) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  scale_color_identity() +  # use the actual colors in the column
+  labs(
+    x = "Activity period",
+    y = "Log-proportional ratio of observations\n(iNaturalist / EDDMapS)"
+  ) +
   theme_classic(base_size = 14))
+
 
 # log-transform body size since itis highly skewed
 trait_inat_eddmaps_clean$log_body_size <- log10(trait_inat_eddmaps_clean$`Maximum body mass (g)`)
 
 body_mass_glm <- glm(prop_ratio ~ log_body_size, data=trait_inat_eddmaps_clean, family = gaussian)
 summary(body_mass_glm)
+plot(body_mass_glm)
 
 (body_size <- ggplot(trait_inat_eddmaps_clean, aes(x = `Maximum body mass (g)`, y = prop_ratio)) +
   geom_point() +
@@ -542,6 +582,7 @@ habitat_glm <- glm(prop_ratio ~ Savanna + Forest + Shrubland + Grassland + Wetla
                    data=trait_habitat, family = gaussian)
 summary(habitat_glm)
 
+# examine raw data
 # Gather habitats into long format
 trait_habitat_long <- trait_habitat %>%
   dplyr::select(species, prop_ratio, all_of(habitats)) %>%
@@ -564,8 +605,33 @@ trait_habitat_long <- trait_habitat %>%
   theme_classic(base_size = 14) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)))
 
+# make a coefficient plot
+# Get coefficients and SEs
+coefs <- tibble(
+  Habitat = c("Intercept", "Savanna", "Forest", "Shrubland", "Grassland", "Wetlands", "Rocky"),
+  Estimate = coef(habitat_glm),
+  SE = summary(habitat_glm)$coefficients[, "Std. Error"]
+)
+
+# Compute 95% confidence intervals
+coefs <- coefs %>%
+  mutate(
+    lower = Estimate - 1.96*SE,
+    upper = Estimate + 1.96*SE
+  )
+
+(coef_habitat <- ggplot(coefs %>% filter(Habitat != "Intercept"), aes(x = Habitat, y = Estimate)) +
+    geom_point(size = 4, color = "black") +
+    geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.2, color = "black") +
+    geom_hline(yintercept = 0, linetype = "dashed") +
+    labs(
+      x = "Habitat type",
+      y = "Log-proportional ratio of observations\n(iNaturalist / EDDMapS)"
+    ) +
+    theme_classic(base_size = 14))
+
 # use patchwork to make a nice, combined figure
-(activity + body_size) / habitat
+(coef_activity + body_size) / coef_habitat
 
 ggsave("Figures/species_traists_platform.jpeg", height=8, width=8, units="in")
 
@@ -730,7 +796,7 @@ library(sf)     # For spatial operations
 library(units)  # For unit conversion
 
 # Process EDDMapS data
-eddmaps_new2 <- read.csv("/Users/mario/Desktop/iNat-vs.-Eddmaps/Data/EDDmapS_observations.csv")
+eddmaps_new2 <- read.csv("Data/EDDmapS_observations.csv")
 
 filtered_data_eddmaps2 <- eddmaps_new2 %>%
   filter(SciName %in% eddmaps_introduced_clean$scientific_name)
