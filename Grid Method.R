@@ -195,3 +195,50 @@ print(p2)
 # 8) (Optional) Export grid to shapefile/GeoPackage
 # -----------------------------
 # st_write(grid_ea, "outputs/florida_grid_25km.gpkg", layer = "grid25km", delete_dsn = TRUE)
+
+
+
+
+
+library(lme4)
+
+# -----------------------------
+# 1) Prepare long-format data
+# -----------------------------
+grid_long <- grid_area_by_species |>
+  dplyr::select(Species = species,
+         iNat_area_km2, EDD_area_km2,
+         n_iNaturalist, n_EDDMapS) |>
+  tidyr::pivot_longer(
+    cols = c(iNat_area_km2, EDD_area_km2),
+    names_to = "platform",
+    values_to = "grid_area"
+  ) |>
+  mutate(
+    Platform = ifelse(platform == "iNat_area_km2", "iNaturalist", "EDDMapS"),
+    obs_count = ifelse(Platform == "iNaturalist", n_iNaturalist, n_EDDMapS),
+    log_grid_area = log10(grid_area),
+    log_obs_count = log10(obs_count)
+  ) |>
+  filter(!is.na(log_grid_area), !is.na(log_obs_count), obs_count > 0)
+
+# -----------------------------
+# 2) Base GLM: area ~ platform + log(obs)
+# -----------------------------
+grid_obs_model <- glm(log_grid_area ~ Platform + log_obs_count, data = grid_long)
+summary(grid_obs_model)
+
+# -----------------------------
+# 3) Mixed-effects model (species random effect)
+# -----------------------------
+grid_obs_mixed_model <- lmer(log_grid_area ~ Platform + log_obs_count + (1|Species), data = grid_long)
+summary(grid_obs_mixed_model)
+
+# -----------------------------
+# 4) Interaction test
+# -----------------------------
+grid_interaction_model <- glm(log_grid_area ~ Platform * log_obs_count, data = grid_long)
+summary(grid_interaction_model)
+
+# Likelihood ratio test: does interaction improve fit?
+anova(grid_obs_model, grid_interaction_model)
