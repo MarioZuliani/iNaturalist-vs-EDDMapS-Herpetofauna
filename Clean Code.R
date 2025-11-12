@@ -211,23 +211,23 @@ iNatandEddMap_matched <- iNatandEddMap_matched %>%
 #write.csv(iNatandEddMap_matched, "combined.csv")
 iNatandEddMap_matched <- read.csv("Data/combined.csv")
 
-# Then modify your plot
-Fig_1_Line <- ggplot(iNatandEddMap_matched, aes(x=inat_number_of_obs, y=eddmaps_number_of_obs)) +
-  # Add background points first
-  geom_point(data = subset(iNatandEddMap_matched)) +
-  # Add highlighted species with different colors and slightly larger size
-  # Add labels for the highlighted species
-  scale_x_log10() +
-  scale_y_log10() +
+Fig_1_Line <- ggplot(iNatandEddMap_matched, aes(x = inat_number_of_obs, y = eddmaps_number_of_obs)) +
+  geom_point() +
   geom_smooth(method = "lm") +
-  labs(x = "iNaturalist observations",
-       y = "EDDMapS observations",
-       color = "Species") +
+  scale_x_log10(limits = c(1, NA)) +
+  scale_y_log10(limits = c(1, NA)) +
+  labs(
+    x = "iNaturalist observations",
+    y = "EDDMapS observations",
+    color = "Species"
+  ) +
   theme_classic() +
-  theme(axis.text.x = element_text(size = 11),
-        axis.text.y = element_text(size = 11))
-
+  theme(
+    axis.text.x = element_text(size = 11),
+    axis.text.y = element_text(size = 11)
+  )
 Fig_1_Line
+
 
 # comparison of iNaturalist and eddmaps counts
 model_nb_log <- MASS::glm.nb(eddmaps_number_of_obs ~ log(inat_number_of_obs + 1),
@@ -1194,3 +1194,148 @@ mcp_obs_plot <- ggplot(plot_data_combined, aes(x = obs_count, y = mcp_area)) +
 
 # Display the plot
 print(mcp_obs_plot)
+
+
+
+
+
+
+# ==============================================
+# Modifying Fig 1 Scatter Plot
+# ==============================================
+# ------- Build per-species counts (Florida-filtered) -------
+iNat_counts <- filtered_data_iNat_florida %>%
+  count(species, name = "inat_n")
+
+EDD_counts <- filtered_data_eddmaps_florida %>%
+  count(species, name = "edd_n")
+
+counts <- full_join(iNat_counts, EDD_counts, by = "species")
+
+# ------- Exclusive species (present on only one platform) -------
+epsilon <- 0.5  # axis floor for "absent" side on log scale
+
+exclusive_overlay <- counts %>%
+  mutate(
+    platform = case_when(
+      !is.na(inat_n) &  is.na(edd_n) ~ "iNaturalist only",
+      is.na(inat_n) & !is.na(edd_n) ~ "EDDMapS only",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  filter(!is.na(platform)) %>%
+  mutate(
+    # For plotting on log scales: replace the missing side with epsilon
+    x_plot = if_else(is.na(inat_n), epsilon, as.double(inat_n)),
+    y_plot = if_else(is.na(edd_n), epsilon, as.double(edd_n))
+  )
+
+# ------- Jitter settings (multiplicative in log space) -------
+set.seed(42)     # reproducible jitter
+jitter_dex <- 0.05  # ±0.05 log10 units ≈ ±12%
+floor_jit  <- 0.1  # how far to lift points off the axis floor (log10 units)
+
+exclusive_overlay_jit <- exclusive_overlay %>%
+  mutate(
+    # multiplicative jitter factors
+    jx = 10^(runif(n(), -jitter_dex, jitter_dex)),
+    jy = 10^(runif(n(), -jitter_dex, jitter_dex)),
+    # nudge off the floor so points don’t sit exactly on the axes
+    xj = case_when(
+      x_plot == epsilon ~ epsilon * 10^(runif(n(), 0, floor_jit)),  # rightward off x-floor
+      TRUE              ~ x_plot * jx
+    ),
+    yj = case_when(
+      y_plot == epsilon ~ epsilon * 10^(runif(n(), 0, floor_jit)),  # upward off y-floor
+      TRUE              ~ y_plot * jy
+    )
+  )
+
+# ------- Overlay on your existing Fig_1_Line with jitter -------
+Fig_1_Line_with_exclusive <- Fig_1_Line +
+  # allow axis to show the epsilon floor
+  scale_x_log10(limits = c(epsilon, NA)) +
+  scale_y_log10(limits = c(epsilon, NA)) +
+  # overlay exclusive points (jittered)
+  geom_point(
+    data = exclusive_overlay_jit,
+    aes(x = xj, y = yj, color = platform),
+    size = 2.6, alpha = 0.9, inherit.aes = FALSE
+  ) +
+  scale_color_manual(
+    values = c("iNaturalist only" = "#A7FD25", "EDDMapS only" = "#FD7B25"),
+    name = NULL
+  ) +
+  scale_shape_manual(
+    values = c("iNaturalist only" = 17, "EDDMapS only" = 15),
+    name = NULL
+  ) +
+  guides(
+    color = guide_legend(override.aes = list(size = 3, alpha = 1)),
+    shape = guide_legend(override.aes = list(size = 3, alpha = 1))
+  )
+
+Fig_1_Line_with_exclusive
+
+
+
+
+
+
+
+
+
+# ---- Choose species to highlight ----
+species_to_highlight <- c("Graptemys pseudogeographica", "Xenopus laevis")
+
+# Build a small table of those species from your per-species counts
+hl_raw <- counts %>%
+  filter(species %in% species_to_highlight)
+
+# If none found, bail early (optional)
+if (nrow(hl_raw) == 0) message("None of the highlight species were found in 'counts'.")
+
+# Compute plotted positions with same floor & multiplicative jitter you used above
+set.seed(101)  # separate seed for reproducible highlight positions
+hl_points <- hl_raw %>%
+  mutate(
+    x_plot = if_else(is.na(inat_n), epsilon, as.double(inat_n)),
+    y_plot = if_else(is.na(edd_n),  epsilon, as.double(edd_n)),
+    jx     = 10^(runif(n(), -jitter_dex, jitter_dex)),
+    jy     = 10^(runif(n(), -jitter_dex, jitter_dex)),
+    xh = if_else(
+      is.na(inat_n),
+      epsilon * 10^(runif(n(), 0, floor_jit)),  # nudge off x-floor
+      as.double(inat_n) * jx                    # multiplicative jitter
+    ),
+    yh = if_else(
+      is.na(edd_n),
+      epsilon * 10^(runif(n(), 0, floor_jit)),  # nudge off y-floor
+      as.double(edd_n) * jy                     # multiplicative jitter
+    )
+  )
+
+# ---- Overlay highlight points + labels on your existing figure ----
+Fig_1_Line_with_exclusive_highlights <- Fig_1_Line_with_exclusive +
+  geom_point(
+    data = hl_points,
+    aes(x = xh, y = yh, fill = species),
+    shape = 21, color = "black", stroke = 1.2, size = 4.2,
+    inherit.aes = FALSE
+  ) +
+  ggrepel::geom_text_repel(
+    data = hl_points,
+    aes(x = xh, y = yh, label = species),
+    size = 3.6, fontface = "bold",
+    box.padding = 0.3, point.padding = 0.25, segment.size = 0.4,
+    max.overlaps = Inf, inherit.aes = FALSE
+  ) +
+  scale_fill_manual(
+    values = c(
+      "Graptemys pseudogeographica" = "gold",
+      "Xenopus laevis"              = "deepskyblue"
+    ),
+    guide = "none"
+  )
+
+Fig_1_Line_with_exclusive_highlights
