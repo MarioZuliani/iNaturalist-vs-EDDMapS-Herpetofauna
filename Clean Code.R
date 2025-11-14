@@ -1339,3 +1339,84 @@ Fig_1_Line_with_exclusive_highlights <- Fig_1_Line_with_exclusive +
   )
 
 Fig_1_Line_with_exclusive_highlights
+
+
+
+# ========================
+# Splitting by Rep and Amphib
+# ========================
+
+# ---- Taxonomic groups from iNat introduced list ----
+taxon_groups_iNat <- iNaturalist_introduced %>%
+  transmute(
+    Species = scientific_name,
+    group   = case_when(
+      taxon == "Amphibia" ~ "Amphibian",
+      taxon == "Reptilia" ~ "Reptile",
+      TRUE                ~ NA_character_
+    )
+  ) %>%
+  distinct()
+
+# ---- Taxonomic groups from EDDMapS introduced list ----
+taxon_groups_edd <- eddmaps_introduced_clean %>%
+  transmute(
+    Species = scientific_name,
+    group   = case_when(
+      taxon == "Amphibia" ~ "Amphibian",
+      taxon == "Reptilia" ~ "Reptile",
+      TRUE                ~ NA_character_
+    )
+  ) %>%
+  distinct()
+
+# ---- Combine into a master lookup ----
+all_groups <- bind_rows(taxon_groups_iNat, taxon_groups_edd) %>%
+  group_by(Species) %>%
+  summarise(
+    group = {
+      g <- unique(na.omit(group))
+      if (length(g) == 0) NA_character_ else g[1]
+    },
+    .groups = "drop"
+  )
+
+presence <- read.csv("Data/species_presence_comparison.csv")
+presence <- presence %>%
+  filter(!(Species %in% "Basiliscus spp.")) %>%
+  filter(!(Species %in% "Iguana spp.")) %>%
+  filter(!(Species %in% "Leiocephalus spp.")) %>%
+  filter(!(Species %in% "Python spp.")) %>%
+  filter(!(Species %in% "Trioceros spp.")) %>%
+  rename(iNaturalist = iNaturalist_Present) %>%
+  rename(EDDMapS = EDDMapS_Present)
+
+# ---- Attach reptile/amphibian group to presence table ----
+species_groups <- presence %>%
+  left_join(all_groups, by = "Species")
+# Columns: Species, iNaturalist, EDDMapS, group
+
+# ---- iNaturalist: number of reptile vs amphibian species ----
+inat_species_counts <- species_groups %>%
+  filter(iNaturalist == "Yes", !is.na(group)) %>%
+  count(group, name = "n_species") %>%
+  mutate(prop_species = n_species / sum(n_species))
+
+inat_species_counts
+
+# ---- EDDMapS: number of reptile vs amphibian species ----
+eddmaps_species_counts <- species_groups %>%
+  filter(EDDMapS == "Yes", !is.na(group)) %>%
+  count(group, name = "n_species") %>%
+  mutate(prop_species = n_species / sum(n_species))
+
+eddmaps_species_counts
+
+both_species_counts <- species_groups %>%
+  filter((iNaturalist == "Yes" | EDDMapS == "Yes"),
+         !is.na(group)) %>%
+  count(group, name = "n_species") %>%
+  mutate(prop_species = n_species / sum(n_species))
+
+both_species_counts
+
