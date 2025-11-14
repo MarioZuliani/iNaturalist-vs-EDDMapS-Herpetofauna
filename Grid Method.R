@@ -6,6 +6,7 @@ library(tidyr)
 library(sf)
 library(units)
 library(ggplot2)
+library(fitdistrplus)
 library(tigris)     # pulls Florida boundary (can be swapped for your own polygon)
 options(tigris_use_cache = TRUE)
 
@@ -225,8 +226,25 @@ grid_long <- grid_area_by_species |>
 # -----------------------------
 # 2) Base GLM: area ~ platform + log(obs)
 # -----------------------------
+# check the response distribution
+hist(grid_long$log_grid_area)
+hist(grid_long$grid_area)
+
+fit_norm <- fitdist(grid_long$log_grid_area, "norm")
+fit_lnorm <- fitdist(grid_long$log_grid_area, "lnorm")
+fit_gamma <- fitdist(grid_long$log_grid_area, "gamma")
+
+gofstat(list(fit_norm, fit_lnorm, fit_gamma))
+
 grid_obs_model <- glm(log_grid_area ~ Platform + log_obs_count, data = grid_long)
 summary(grid_obs_model)
+
+# model testing
+plot(mcp_obs_model$fitted.values, resid(mcp_obs_model))
+abline(h = 0, lty = 2)
+
+qqnorm(resid(mcp_obs_model))
+qqline(resid(mcp_obs_model))
 
 # -----------------------------
 # 3) Mixed-effects model (species random effect)
@@ -234,11 +252,28 @@ summary(grid_obs_model)
 grid_obs_mixed_model <- lmer(log_grid_area ~ Platform + log_obs_count + (1|Species), data = grid_long)
 summary(grid_obs_mixed_model)
 
+# model testing
+plot(mcp_obs_mixed_model)
+
+qqnorm(residuals(mcp_obs_mixed_model))
+qqline(residuals(mcp_obs_mixed_model))
+
+qqnorm(ranef(mcp_obs_mixed_model)$Species[,1])
+qqline(ranef(mcp_obs_mixed_model)$Species[,1])
+
 # -----------------------------
 # 4) Interaction test
 # -----------------------------
 grid_interaction_model <- glm(log_grid_area ~ Platform * log_obs_count, data = grid_long)
 summary(grid_interaction_model)
 
+# model testing
+plot(mcp_obs_model$fitted.values, resid(mcp_obs_model))
+abline(h = 0, lty = 2)
+
+qqnorm(resid(mcp_obs_model))
+qqline(resid(mcp_obs_model))
+
 # Likelihood ratio test: does interaction improve fit?
 anova(grid_obs_model, grid_interaction_model)
+
