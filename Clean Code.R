@@ -364,7 +364,7 @@ ggplot(presence_summary, aes(x = "", y = n, fill = Category)) +
   theme(
     text = element_text(family = "Times New Roman"),
     plot.title = element_text(hjust = 0.5, size = 14),
-    legend.text = element_text(size = 12)
+    legend.position = "none"
   ) +
   geom_text(aes(label = paste0(n, "\n(", round(n/sum(n)*100, 1), "%)")), 
             position = position_stack(vjust = 0.5),
