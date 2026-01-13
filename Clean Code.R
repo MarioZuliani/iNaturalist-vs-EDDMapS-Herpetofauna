@@ -36,8 +36,11 @@ filtered_data_iNat <- iNat %>%
 
 
 filtered_data_iNat <- filtered_data_iNat %>%
-  dplyr::select(species, decimalLatitude, decimalLongitude, day, month, year) %>%
-  filter(!is.na(decimalLatitude) & !is.na(decimalLongitude)) ### There are no instances of Lat or Long being NAs
+  dplyr::select(species, decimalLatitude, decimalLongitude, day, month, year, coordinateUncertaintyInMeters) %>%
+  filter(!is.na(decimalLatitude) & !is.na(decimalLongitude)) %>% 
+  filter(!is.na(coordinateUncertaintyInMeters),
+       coordinateUncertaintyInMeters <= 1000)
+
 
 # Rename columns for latitude and longitude
 filtered_data_iNat <- filtered_data_iNat %>%
@@ -865,8 +868,10 @@ filtered_data_iNat2 <- iNat2 %>%
 
 
 filtered_data_iNat2 <- filtered_data_iNat2 %>%
-  dplyr::select(species, decimalLatitude, decimalLongitude, day, month, year) %>%
-  filter(!is.na(decimalLatitude) & !is.na(decimalLongitude))
+  dplyr::select(species, decimalLatitude, decimalLongitude, day, month, year, coordinateUncertaintyInMeters) %>%
+  filter(!is.na(decimalLatitude) & !is.na(decimalLongitude)) %>% 
+  filter(!is.na(coordinateUncertaintyInMeters),
+         coordinateUncertaintyInMeters <= 1000)
 
 filtered_data_iNat2 <- filtered_data_iNat2 %>%
   rename(Latitude = decimalLatitude, Longitude = decimalLongitude, Month = month, Day = day, Year = year)
