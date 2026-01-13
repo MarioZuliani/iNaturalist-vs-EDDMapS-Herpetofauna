@@ -1,0 +1,179 @@
+Genus,Species,Common Name,FL Native
+Acris,crepitans crepitans,Eastern Cricket Frog,Yes
+Acris,gryllus dorsalis,Florida Cricket Frog,Yes
+Acris,gryllus gryllus,Coastal Plain Cricket Frog,Yes
+Anaxyrus,fowleri,Fowler's Toad,Yes
+Anaxyrus,quercicus,Oak Toad,Yes
+Anaxyrus,terrestris,Southern Toad,Yes
+Eleutherodactylus,planirostris,Greenhouse Frog,No
+Gastrophryne,carolinensis,Eastern Narrowmouth Toad,Yes
+Hyla,andersonii,Pine Barrens Treefrog,Yes
+Hyla,avivoca,Bird-voiced Treefrog,Yes
+Hyla,chrysocelis,Cope's Gray Treefrog,Yes
+Hyla,cinerea,Green Treefrog,Yes
+Hyla,femoralis,Pine Woods Treefrog,Yes
+Hyla,gratiosa,Barking Treefrog,Yes
+Hyla,squirella,Squirrel Treefrog,Yes
+Osteopilus,septentrionalis,Cuban Treefrog,No
+Pseudacris,crucifer,Spring Peeper,Yes
+Pseudacris,feriarum,Upland Chorus Frog,Yes
+Pseudacris,nigrita,Southern Chorus Frog,Yes
+Pseudacris,ocularis,Little Grass Frog,Yes
+Pseudacris,ornata,Ornate Chorus Frog,Yes
+Rana,capito,Gopher Frog,Yes
+Rana,catesbeianus,Bullfrog,Yes
+Rana,clamitans clamitans,Bronze Frog,Yes
+Rana,grylio,Pig Frog,Yes
+Rana,heckscheri,River Frog,Yes
+Rana,okaloosae,Florida Bog Frog,Yes
+Rana,sphenocephalus,Southern Leopard Frog,Yes
+Rana,virgatipes,Carpenter Frog,Yes
+Rhinella,marina,Cane Toad,No
+Scaphiopus,holbrookii,Eastern Spadefoot,Yes
+Alligator,mississippiensis,American Alligator,Yes
+Caiman,crocodilus,Spectacled Caiman,No
+Crocodylus,acutus,American Crocodile,Yes
+Agama,agama,African Rainbow Lizard,No
+Ameiva,ameiva,Giant Ameiva,No
+Ameiva,praesignis,Borriguerro Ameiva,No
+Anolis,carolinensis,Green Anole,Yes
+Anolis,chlorocyanus,Hispaniolan Green Anole,No
+Anolis,cristatellus,Puerto Rican Crested Anole,No
+Anolis,cybotes,Large-headed Anole,No
+Anolis,distichus,Bark Anole,No
+Anolis,equestris,Knight Anole,No
+Anolis,garmani,Jamaican Giant Anole,No
+Anolis,porcatus,Cuban Green Anole,No
+Anolis,sagrei,Cuban Brown Anole,No
+Anolis,trinitatis,Saint Vincent's Bush Anole,No
+Aspidoscelis,motaguae,Giant Whiptail,No
+Aspidoscelis,sexlineata,Six-lined Racerunner,Yes
+Basiliscus,vittatus,Brown Basilisk,No
+Calotes,cf. versicolor,Variable Bloodsucker,No
+Chalcides,ocellatus,Ocellated Skink,No
+Chamaeleo,calyptratus,Veiled Chameleon,No
+Cnemidophorus,lemniscatus,Rainbow Whiptail,No
+Ctenosaura,pectinata,Mexican Spinytail Iguana,No
+Ctenosaura,similis,Black Spinytail Iguana,No
+Eutropis,multifasciata,Brown Mabuya,No
+Furcifer,oustaleti,Oustalet's Chameleon,No
+Furcifer,pardalis,Panther Chameleon,No
+Gekko,badenii,Golden Gecko,No
+Gekko,gecko,Tokay Gecko,No
+Gonatodes,albogularis,Yellowhead Gecko,No
+Hemidactylus,frenatus,Common House Gecko,No
+Hemidactylus,garnotii,Indo-Pacific House Gecko,No
+Hemidactylus,mabouia,Wood Slave,No
+Hemidactylus,platyurus,Asian Flat-tailed House Gecko,No
+Hemidactylus,turcicus,Mediterranean Gecko,No
+Iguana,iguana,Green Iguana,No
+Leiocephalus,carinatus,Northern Curlytail Lizard,No
+Leiocephalus,schreibersii,Red-sided Curlytail Lizard,No
+Leiolepis,belliana,Butterfly Lizard,No
+Leiolepis,rubritaeniata,Red-banded Butterfly Lizard,No
+Lepidodactylus,lugubris,Mourning Gecko,No
+Ophisaurus,attenuatus longicaudus,Eastern Slender Glass Lizard,Yes
+Ophisaurus,compressus,Island Glass Lizard,Yes
+Ophisaurus,mimicus,Mimic Glass Lizard,Yes
+Ophisaurus,ventralis,Eastern Glass Lizard,Yes
+Phelsuma,grandis,Madagascar Giant Day Gecko,No
+Phelsuma,laticauda,Gold Dust Day Gecko,No
+Phrynosoma,cornutum,Texas Horned Lizard,No
+Plestiodon,anthracinus,Coal Skink,Yes
+Plestiodon,egregius egregius,Florida Keys Mole Skink,Yes
+Plestiodon,egregius insularis,Cedar Key Mole Skink,Yes
+Plestiodon,egregius lividus,Bluetail Mole Skink,Yes
+Plestiodon,egregius onocrepis,Peninsula Mole Skink,Yes
+Plestiodon,egregius similis,Northern Mole Skink,Yes
+Plestiodon,fasciatus,Common Five-lined Skink,Yes
+Plestiodon,inexpectatus,Southeastern Five-lined Skink,Yes
+Plestiodon,laticeps,Broadhead Skink,Yes
+Plestiodon,reynoldsi,Florida Sand Skink,Yes
+Rhineura,floridana,Florida Worm Lizard,Yes
+Salvator,merianae,Argentine Black & White Tegu,No
+Sceloporus,undulatus,Eastern Fence Lizard,Yes
+Sceloporus,woodi,Florida Scrub Lizard,Yes
+Scincella,lateralis,Ground Skink,Yes
+Sphaerodactylus,argus,Ocellated Gecko,No
+Sphaerodactylus,elegans,Ashy Gecko,No
+Sphaerodactylus,notatus,Reef Gecko,Yes
+Tarentola,annularis,Ringed Wall Gecko,No
+Tarentola,mauritanica,Moorish Gecko,No
+Trachylepis,quinquetaeniata,African Five-lined Skink,No
+Varanus,niloticus,Nile Monitor,No
+Ambystoma,bishopi,Reticulated Flatwoods Salamander,Yes
+Ambystoma,cingulatum,Flatwoods Salamander,Yes
+Ambystoma,opacum,Marbled Salamander,Yes
+Ambystoma,talpoideum,Mole Salamander,Yes
+Ambystoma,tigrinum,Tiger Salamander,Yes
+Ambystoma,tigrinum tigrinum,Eastern Tiger Salamander,Yes
+Amphiuma,means,Two-toed Amphiuma,Yes
+Amphiuma,pholeter,One-toed Amphiuma,Yes
+Desmognathus,apalachicolae,Apalachicola Dusky Salamander,Yes
+Desmognathus,auriculatus,Southern Dusky Salamander,Yes
+Desmognathus,cf. conanti,Spotted Dusky Salamander,Yes
+Desmognathus,monticola,Seal Salamander,Yes
+Eurycea,guttolineata,Three-lined Salamander,Yes
+Eurycea,cirrigera,Southern Two-lined Salamander,Yes
+Eurycea,quadridigitata complex,Dwarf Salamander,Yes
+Eurycea,wallacei,Georgia Blind Salamander,Yes
+Hemidactylium,scutatum,Four-toed Salamander,Yes
+Necturus,cf. beyeri,Gulf Coast Waterdog,Yes
+Notophthalmus,perstriatus,Striped Newt,Yes
+Notopthalmus,viridescens louisianensis,Central Newt,Yes
+Notopthalmus,viridescens piaropicola,Peninsular Newt,Yes
+Plethodon,glutinosus,Slimy Salamander,Yes
+Pseudobranchus,axanthus axanthus,Narrow-striped Dwarf Siren,Yes
+Pseudobranchus,axanthus belli,Everglades Dwarf Siren,Yes
+Pseudobranchus,striatus lustricolus,Gulf Hammock Dwarf Siren,Yes
+Pseudobranchus,striatus spheniscus,Slender Dwarf Siren,Yes
+Pseudobranchus,striatus striatus,Broad-striped Dwarf Siren,Yes
+Pseudotriton,montanus flavissimus,Gulf Coast Mud Salamander,Yes
+Pseudotriton,montanus floridanus,Rusty Mud Salamander,Yes
+Pseudotriton,ruber vioscai,Southern Red Salamander,Yes
+Siren,intermedia complex,Eastern Lesser Siren,Yes
+Siren,lacertina complex,Greater Siren,Yes
+Stereochilus,marginatus,Many-lined Salamander,Yes
+Apalone,ferox,Florida Softshell,Yes
+Apalone,mutica calvata,Gulf Coast Smooth Softshell,Yes
+Apalone,spinifera,Spiny Softshell,Yes
+Apalone,spinifera aspera,Gulf Coast Spiny Softshell,Yes
+Caretta,caretta,Loggerhead Sea Turtle,Yes
+Chelonia,mydas,Green Sea Turtle,Yes
+Chelydra,serpentina osceola,Florida Snapping Turtle,Yes
+Chelydra,serpentina serpentina,Common Snapping Turtle,Yes
+Chrysemys,dorsalis,Southern Painted Turtle,Yes
+Clemmys,guttata,Spotted Turtle,Yes
+Deirochelys,reticularia chrysea,Florida Chicken Turtle,Yes
+Deirochelys,reticularia reticularia,Eastern Chicken Turtle,Yes
+Dermochelys,coriacea,Leatherback Sea Turtle,Yes
+Eretmochelys,imbricata,Atlantic Hawksbill Sea Turtle,Yes
+Gopherus,polyphemus,Gopher Tortoise,Yes
+Graptemys,barbouri,Barbour's Map Turtle,Yes
+Graptemys,ernsti,Escambia Map Turtle,Yes
+Graptemys,pseudogeographica,False Map Turtle,Yes
+Kinosternon,baurii,Striped Mud Turtle,Yes
+Kinosternon,subrubrum steindachneri,Florida Mud Turtle,Yes
+Kinosternon,subrubrum subrubrum,Eastern Mud Turtle,Yes
+Lepidochelys,kempii,Kemp's Ridley Sea Turtle,Yes
+Macrochelys,suwanniensis,Suwannee Alligator Snapping Turtle,Yes
+Macrochelys,temminckii,Alligator Snapping Turtle,Yes
+Macrochelys,apalachicolae,Apalachicola Alligator Snapping Turtle,Yes
+Malaclemys,terrapin centrata,Carolina Diamondback Terrapin,Yes
+Malaclemys,terrapin macrospilota,Ornate Diamondback Terrapin,Yes
+Malaclemys,terrapin rhizophorarum,Mangrove Diamondback Terrapin,Yes
+Malaclemys,terrapin tequesta,Eastern Florida Diamondback Terrapin,Yes
+Pseudemys,nelsoni,Florida Redbelly Cooter,Yes
+Pseudemys,suwanniensis,Suwannee Cooter,Yes
+Pseudemys,concinna,River Cooter,Yes
+Pseudemys,peninsularis,Peninsula Cooter,Yes
+Staurotypus,salvinii,Pacific Coast Giant Musk Turtle,No
+Sternotherus,minor minor,Loggerhead Musk Turtle,Yes
+Sternotherus,minor peltifer,Stripeneck Musk Turtle,Yes
+Sternotherus,odoratus,Eastern Musk Turtle,Yes
+Terrapene,carolina bauri,Florida Box Turtle,Yes
+Terrapene,carolina carolina,Eastern Box Turtle,Yes
+Terrapene,carolina major,Gulf Coast Box Turtle,Yes
+Terrapene,carolina triunguis,Three-toed Box Turtle,Yes
+Trachemys,scripta elegans,Red-eared Slider,No
+Trachemys,scripta scripta,Yellowbelly Slider,Yes
