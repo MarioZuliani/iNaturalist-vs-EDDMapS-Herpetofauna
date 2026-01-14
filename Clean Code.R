@@ -788,110 +788,12 @@ library(sf)     # For spatial operations
 library(units)  # For unit conversion
 
 # Process EDDMapS data
-eddmaps_new2 <- read.csv("Data/EDDmapS_observations.csv")
+filtered_data_eddmaps_florida2 <- filtered_data_eddmaps_florida %>% filter(Year >= 2014 & Year <= 2024)
 
-filtered_data_eddmaps2 <- eddmaps_new2 %>%
-  filter(SciName %in% eddmaps_introduced_clean$scientific_name)
-
-filtered_data_eddmaps2 <- filtered_data_eddmaps2 %>%
-  dplyr::select(SciName, ObsDate, Latitude, Longitude, CoordAcc) %>%
-  mutate(
-    coordinateUncertaintyInMeters = as.numeric(as.character(CoordAcc))
-  ) %>%
-  filter(
-    !is.na(Latitude) & !is.na(Longitude),
-    is.na(coordinateUncertaintyInMeters) | coordinateUncertaintyInMeters <= 1000) %>%
-  dplyr::select(-CoordAcc)
-
-filtered_data_eddmaps2 <- filtered_data_eddmaps2 %>%
-  mutate(SciName = case_when(
-    SciName == "Chelonoidis carbonaria" ~ "Chelonoidis carbonarius",
-    SciName == "Leiocephalus carinatus armouri" ~ "Leiocephalus carinatus",
-    SciName == "Sphaerodactylus argus argus" ~ "Sphaerodactylus argus",
-    SciName == "Anolis equestris persparsus" ~ "Anolis equestris",
-    SciName == "Python molurus ssp. bivittatus" ~ "Python bivittatus",
-    SciName == "Boa constrictor constrictor"~ "Boa constrictor",
-    SciName == "Anolis cristatellus cristatellus" ~ "Anolis cristatellus",
-    SciName == "Bufo marinus" ~ "Rhinella marina",
-    SciName == "Geochelone sulcata" ~ "Centrochelys sulcata",
-    SciName == "Geochelone carbonaria" ~ "Chelonoidis carbonarius",
-    SciName == "Chelonoidis denticulatus" ~ "Chelonoidis denticulata",
-    SciName == "Ramphotyphlops braminus"~ "Indotyphlops braminus",
-    SciName == "Lygodactylus luteopicturatus" ~ "Lygodactylus picturatus",
-    SciName == "Chelonoidis denticulata" ~ "Chelonoidis denticulatus",
-    SciName == "Leiocephalus schreibersii schreibersii" ~ "Leiocephalus schreibersii",
-    SciName == "Leiolepis belliana belliana" ~ "Leiolepis belliana",
-    SciName == "Litoria caerulea" ~ "Ranoidea caerulea",
-    SciName == "Epicrates cenchria cenchria" ~ "Epicrates cenchria",
-    SciName == "Epicrates cenchria maurus" ~ "Epicrates cenchria",
-    SciName == "Trachemys scripta elegans" ~ "Trachemys scripta elegans",
-    TRUE ~ SciName  # Keep all other names unchanged
-  ))
-
-
-filtered_data_eddmaps2 <- filtered_data_eddmaps2 %>%
-  rename(species = SciName)
-
-filtered_data_eddmaps2 <- filtered_data_eddmaps2 %>%
-  separate(ObsDate, into = c("Month", "Day", "Year"), sep = "/")
-
-filtered_data_eddmaps2 <- filtered_data_eddmaps2 %>%
-  mutate(source = "EDDMapS")
-
-# Define Florida's geographic boundaries for map
-filtered_data_eddmaps_florida2 <- filtered_data_eddmaps2 %>%
-  filter(Latitude >= 24.396308 & Latitude <= 31.000888,
-         Longitude >= -87.634938 & Longitude <= -80.031362)
 
 # Process iNaturalist data
-iNat2 <- readRDS("Data/iNat_herp_data.RDS")
+filtered_data_iNat_florida2 <- filtered_data_iNat_florida %>% filter(Year >= 2014 & Year <= 2024)
 
-filtered_data_iNat2 <- iNat2 %>%
-  filter(species %in% iNaturalist_introduced$scientific_name) %>%
-  filter(!(species %in% "Anaxyrus fowleri")) %>%
-  filter(!(species %in% "Desmognathus conanti")) %>%
-  filter(!(species %in% "Pseudotriton ruber"))%>%
-  filter(!(species %in% "Eurycea cirrigera"))%>%
-  filter(!(species %in% "Eurycea guttolineata"))%>%
-  filter(!(species %in% "Eretmochelys imbricata")) %>%
-  filter(!(species %in% "Desmognathus conanti")) %>%
-  filter(!(species %in% "Incilius nebulifer")) %>%
-  filter(!(species %in% "Lampropeltis rhombomaculata")) %>%
-  filter(!(species %in% "Lepidochelys kempii")) %>%
-  filter(!(species %in% "Lithobates virgatipes"))
-
-
-
-filtered_data_iNat2 <- filtered_data_iNat2 %>%
-  dplyr::select(species, decimalLatitude, decimalLongitude, day, month, year, coordinateUncertaintyInMeters) %>%
-  filter(!is.na(decimalLatitude) & !is.na(decimalLongitude)) %>% 
-  filter(is.na(coordinateUncertaintyInMeters) | coordinateUncertaintyInMeters <= 1000)
-
-filtered_data_iNat2 <- filtered_data_iNat2 %>%
-  rename(Latitude = decimalLatitude, Longitude = decimalLongitude, Month = month, Day = day, Year = year)
-
-filtered_data_iNat2 <- filtered_data_iNat2 %>%
-  mutate(Month = as.character(Month),
-         Day = as.character(Day),
-         Year = as.character(Year))
-
-filtered_data_iNat2 <- filtered_data_iNat2 %>%
-  mutate(source = "iNaturalist")
-
-filtered_data_iNat_florida2 <- filtered_data_iNat2 %>%
-  filter(Latitude >= 24.396308 & Latitude <= 31.000888,
-         Longitude >= -87.634938 & Longitude <= -80.031362)
-
-# Filter for years between 2014 and 2024
-filtered_data_eddmaps_florida2 <- filtered_data_eddmaps_florida2 %>%
-  mutate(Year = as.numeric(Year)) %>%
-  filter(Year >= 2014 & Year <= 2024) %>%
-  mutate(Year = as.character(Year))
-
-filtered_data_iNat_florida2 <- filtered_data_iNat_florida2 %>%
-  mutate(Year = as.numeric(Year)) %>%
-  filter(Year >= 2014 & Year <= 2024) %>%
-  mutate(Year = as.character(Year))
 
 # Function to calculate 95% MCP area in square kilometers
 calculate_mcp_area <- function(data, percent = 95) {
@@ -1185,7 +1087,7 @@ mcp_obs_plot <- ggplot(plot_data_combined, aes(x = obs_count, y = mcp_area)) +
     legend.title = element_text(size = 11),
     legend.text = element_text(size = 10),
     plot.caption = element_text(size = 9, hjust = 0, margin = margin(t = 15)),
-    legend.position = c(0.15, 0.85),
+    legend.position = c(0.85, 0.15),
     legend.background = element_rect(fill = "white", color = "black", size = 0.3),
     legend.margin = margin(6, 6, 6, 6)
   ) +
@@ -1193,6 +1095,15 @@ mcp_obs_plot <- ggplot(plot_data_combined, aes(x = obs_count, y = mcp_area)) +
 
 # Display the plot
 print(mcp_obs_plot)
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1418,6 +1329,9 @@ both_species_counts <- species_groups %>%
   mutate(prop_species = n_species / sum(n_species))
 
 both_species_counts
+
+
+
 
 
 
