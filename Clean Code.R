@@ -15,7 +15,7 @@ library(scales)
 
 iNaturalist_introduced <- read.csv("Data/iNaturalist_introduced.csv")
 eddmaps_introduced_clean <- read.csv("Data/eddmaps_introduced.csv")
-presence <- read.csv("Data/species_presence_comparison.csv")
+
 
 # =========================
 # iNat cleanup
@@ -38,8 +38,7 @@ filtered_data_iNat <- iNat %>%
 filtered_data_iNat <- filtered_data_iNat %>%
   dplyr::select(species, decimalLatitude, decimalLongitude, day, month, year, coordinateUncertaintyInMeters) %>%
   filter(!is.na(decimalLatitude) & !is.na(decimalLongitude)) %>%
-  # keep NA uncertainty; only drop > 1000
-  filter(is.na(coordinateUncertaintyInMeters) | coordinateUncertaintyInMeters <= 1000) %>%
+  # NOTE (Obj 1): no coordinate uncertainty filter applied
   rename(Latitude = decimalLatitude, Longitude = decimalLongitude) %>%
   mutate(Year = as.numeric(year)) %>%
   filter(Year >= 2010 & Year <= 2024) %>%
@@ -82,11 +81,9 @@ cat("EDDMapS rows after removing crossposts: ", nrow(filtered_data_eddmaps), "\n
 filtered_data_eddmaps <- filtered_data_eddmaps %>%
   dplyr::select(SciName, ObsDate, Latitude, Longitude, CoordAcc) %>%
   mutate(coordinateUncertaintyInMeters = as.numeric(as.character(CoordAcc))) %>%
-  filter(
-    !is.na(Latitude) & !is.na(Longitude),
-    is.na(coordinateUncertaintyInMeters) | coordinateUncertaintyInMeters <= 1000
-  ) %>%
+  filter(!is.na(Latitude) & !is.na(Longitude)) %>%
   dplyr::select(-CoordAcc)
+
 
 filtered_data_eddmaps <- filtered_data_eddmaps %>%
   mutate(SciName = case_when(
@@ -637,6 +634,16 @@ ggsave("Figures/species_traists_platform.jpeg", height=8, width=8, units="in")
 
 
 ### Density Histogram for Urbanization (Obj 2.)
+
+
+# -----------------------------
+# Apply 1000 m uncertainty filter HERE (Obj 2 only)
+# -----------------------------
+filtered_data_iNat_florida_obj2 <- filtered_data_iNat_florida %>%
+  filter(is.na(coordinateUncertaintyInMeters) | coordinateUncertaintyInMeters <= 1000)
+
+filtered_data_eddmaps_florida_obj2 <- filtered_data_eddmaps_florida %>%
+  filter(is.na(coordinateUncertaintyInMeters) | coordinateUncertaintyInMeters <= 1000)
 
 #Convert the data to an sf object with spatial coordinates.
 iNat_spatial <- filtered_data_iNat_florida %>%
