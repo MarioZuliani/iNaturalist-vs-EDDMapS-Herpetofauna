@@ -38,8 +38,7 @@ filtered_data_iNat <- iNat %>%
 filtered_data_iNat <- filtered_data_iNat %>%
   dplyr::select(species, decimalLatitude, decimalLongitude, day, month, year, coordinateUncertaintyInMeters) %>%
   filter(!is.na(decimalLatitude) & !is.na(decimalLongitude)) %>% 
-  filter(!is.na(coordinateUncertaintyInMeters),
-       coordinateUncertaintyInMeters <= 1000)
+  filter(is.na(coordinateUncertaintyInMeters) | coordinateUncertaintyInMeters <= 1000)
 
 
 # Rename columns for latitude and longitude
@@ -68,8 +67,14 @@ filtered_data_eddmaps <- eddmaps %>%
 
 ### Select the columns relavent to MCPs
 filtered_data_eddmaps <- filtered_data_eddmaps %>%
-  dplyr::select(SciName, ObsDate, Latitude, Longitude) %>%
-  filter(!is.na(Latitude) & !is.na(Longitude))
+  dplyr::select(SciName, ObsDate, Latitude, Longitude, CoordAcc) %>%
+  mutate(
+    coordinateUncertaintyInMeters = as.numeric(as.character(CoordAcc))
+  ) %>%
+  filter(
+    !is.na(Latitude) & !is.na(Longitude),
+    is.na(coordinateUncertaintyInMeters) | coordinateUncertaintyInMeters <= 1000) %>%
+  dplyr::select(-CoordAcc)
 
 filtered_data_eddmaps <- filtered_data_eddmaps %>%
   mutate(SciName = case_when(
@@ -805,8 +810,14 @@ filtered_data_eddmaps2 <- eddmaps_new2 %>%
   filter(SciName %in% eddmaps_introduced_clean$scientific_name)
 
 filtered_data_eddmaps2 <- filtered_data_eddmaps2 %>%
-  dplyr::select(SciName, ObsDate, Latitude, Longitude) %>%
-  filter(!is.na(Latitude) & !is.na(Longitude))
+  dplyr::select(SciName, ObsDate, Latitude, Longitude, CoordAcc) %>%
+  mutate(
+    coordinateUncertaintyInMeters = as.numeric(as.character(CoordAcc))
+  ) %>%
+  filter(
+    !is.na(Latitude) & !is.na(Longitude),
+    is.na(coordinateUncertaintyInMeters) | coordinateUncertaintyInMeters <= 1000) %>%
+  dplyr::select(-CoordAcc)
 
 filtered_data_eddmaps2 <- filtered_data_eddmaps2 %>%
   mutate(SciName = case_when(
@@ -870,8 +881,7 @@ filtered_data_iNat2 <- iNat2 %>%
 filtered_data_iNat2 <- filtered_data_iNat2 %>%
   dplyr::select(species, decimalLatitude, decimalLongitude, day, month, year, coordinateUncertaintyInMeters) %>%
   filter(!is.na(decimalLatitude) & !is.na(decimalLongitude)) %>% 
-  filter(!is.na(coordinateUncertaintyInMeters),
-         coordinateUncertaintyInMeters <= 1000)
+  filter(is.na(coordinateUncertaintyInMeters) | coordinateUncertaintyInMeters <= 1000)
 
 filtered_data_iNat2 <- filtered_data_iNat2 %>%
   rename(Latitude = decimalLatitude, Longitude = decimalLongitude, Month = month, Day = day, Year = year)
@@ -1425,3 +1435,79 @@ both_species_counts <- species_groups %>%
 
 both_species_counts
 
+
+# =======================================================
+# Check to see how many obs removed > 1000 m uncertainty
+# =======================================================
+
+# --- EDDMapS---
+edd_pre_unc <- eddmaps %>%
+  filter(SciName %in% eddmaps_introduced_clean$scientific_name) %>%
+  dplyr::select(SciName, ObsDate, Latitude, Longitude, CoordAcc) %>%
+  filter(!is.na(Latitude) & !is.na(Longitude)) %>%
+  mutate(
+    coordinateUncertaintyInMeters = as.numeric(as.character(CoordAcc))
+  )
+
+
+filtered_data_eddmaps <- edd_pre_unc %>%
+  filter(is.na(coordinateUncertaintyInMeters) | coordinateUncertaintyInMeters <= 1000) %>%
+  dplyr::select(-CoordAcc)
+
+
+edd_removed_summary <- tibble(
+  dataset = "EDDMapS",
+  n_before = nrow(edd_pre_unc),
+  n_after  = nrow(filtered_data_eddmaps),
+  removed  = n_before - n_after,
+  pct_removed = round(100 * removed / n_before, 2),
+  
+  # Diagnostics from PRE data:
+  n_uncertainty_NA = sum(is.na(edd_pre_unc$coordinateUncertaintyInMeters)),
+  n_uncertainty_gt1000 = sum(edd_pre_unc$coordinateUncertaintyInMeters > 1000, na.rm = TRUE),
+  
+  # With NA-kept logic:
+  removed_uncertainty_NA = 0,
+  removed_uncertainty_gt1000 = sum(edd_pre_unc$coordinateUncertaintyInMeters > 1000, na.rm = TRUE)
+)
+
+edd_removed_summary
+
+
+# --- iNat ---
+iNat_pre_unc <- iNat %>%
+  filter(species %in% iNaturalist_introduced$scientific_name) %>%
+  filter(!(species %in% c(
+    "Anaxyrus fowleri", "Desmognathus conanti", "Pseudotriton ruber",
+    "Eurycea cirrigera", "Eurycea guttolineata", "Eretmochelys imbricata",
+    "Incilius nebulifer", "Lampropeltis rhombomaculata", "Lepidochelys kempii",
+    "Lithobates virgatipes"
+  ))) %>%
+  dplyr::select(
+    species, decimalLatitude, decimalLongitude, day, month, year,
+    coordinateUncertaintyInMeters
+  ) %>%
+  filter(!is.na(decimalLatitude) & !is.na(decimalLongitude))
+
+
+filtered_data_iNat <- iNat_pre_unc %>%
+  filter(is.na(coordinateUncertaintyInMeters) | coordinateUncertaintyInMeters <= 1000)
+
+
+inat_removed_summary <- tibble(
+  dataset = "iNaturalist",
+  n_before = nrow(iNat_pre_unc),
+  n_after  = nrow(filtered_data_iNat),
+  removed  = n_before - n_after,
+  pct_removed = round(100 * removed / n_before, 2),
+  
+  # Diagnostics about what existed in the PRE data:
+  n_uncertainty_NA = sum(is.na(iNat_pre_unc$coordinateUncertaintyInMeters)),
+  n_uncertainty_gt1000 = sum(iNat_pre_unc$coordinateUncertaintyInMeters > 1000, na.rm = TRUE),
+  
+  # With NA-kept logic, these are not removed due to uncertainty:
+  removed_uncertainty_NA = 0,
+  removed_uncertainty_gt1000 = sum(iNat_pre_unc$coordinateUncertaintyInMeters > 1000, na.rm = TRUE)
+)
+
+inat_removed_summary
