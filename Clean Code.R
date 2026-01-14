@@ -647,150 +647,127 @@ ggsave("Figures/species_traists_platform.jpeg", height=8, width=8, units="in")
 
 
 
-### Density Histogram for Urbanization (Obj 2.)
-
+### Density Histogram for Population Density / Urbanization Proxy (Obj 2.)
 
 # -----------------------------
-# Apply 1000 m uncertainty filter HERE (Obj 2 only)
+# 1) Apply 1000 m uncertainty filter (Obj 2 only)
 # -----------------------------
-filtered_data_iNat_florida_obj2 <- filtered_data_iNat_florida %>%
-  filter(is.na(coordinateUncertaintyInMeters) | coordinateUncertaintyInMeters <= 1000)
-
-filtered_data_eddmaps_florida_obj2 <- filtered_data_eddmaps_florida %>%
-  filter(is.na(coordinateUncertaintyInMeters) | coordinateUncertaintyInMeters <= 1000)
-
-#Convert the data to an sf object with spatial coordinates.
-iNat_spatial <- filtered_data_iNat_florida %>%
-  st_as_sf(coords = c("Longitude", "Latitude"), crs = 4326)
-
-#Load the population density raster file.
-pop_density <- raster("Data/fl_pop_density.tif")
-
-#Check the coordinate reference system (CRS) of both datasets.
-st_crs(iNat_spatial)
-crs(pop_density)
-crs(pop_density) <- "+proj=longlat +datum=WGS84 +no_defs"
-
-#Extract raster values (population density) for each observation point.
-iNat_spatial$PopDensity <- raster::extract(pop_density, st_coordinates(iNat_spatial))
-
-
-#define urbanization levels MAKE IT A CONTINUOUS GRADIENT TO AVOID CATEGORIZATION DEFENSE
-iNat_spatial_defined <- iNat_spatial %>%
-  mutate(Urbanization = PopDensity) %>%
-  st_drop_geometry() %>%
-  as.data.frame() %>%
-  dplyr::select(PopDensity, Urbanization, species, Year, Month, Day, coordinateUncertaintyInMeters)
-
-
-
-EDDmaps_spatial <- filtered_data_eddmaps_florida %>%
-  st_as_sf(coords = c("Longitude", "Latitude"), crs = 4326)
-
-
-# Extract population density for EDDMapS observations
-EDDmaps_spatial$PopDensity <- raster::extract(pop_density, st_coordinates(EDDmaps_spatial))
-
-# Convert to data frame and retain necessary columns
-EDDmaps_spatial_defined <- EDDmaps_spatial %>%
-  mutate(Urbanization = PopDensity) %>%
-  st_drop_geometry() %>%
-  as.data.frame() %>%
-  dplyr::select(PopDensity, Urbanization, species, Year, Month, Day, coordinateUncertaintyInMeters)
-
-
-# Add a new column to identify the source dataset
-EDDmaps_spatial_defined <- EDDmaps_spatial_defined %>%
-  mutate(Source = "EDDMapS")
-
-iNat_spatial_defined <- iNat_spatial_defined %>%
+inat_obj2 <- filtered_data_iNat_florida %>%
+  filter(is.na(coordinateUncertaintyInMeters) | coordinateUncertaintyInMeters <= 1000) %>%
   mutate(Source = "iNaturalist")
 
-# Combine both datasets into one
-PopData_combined <- bind_rows(EDDmaps_spatial_defined, iNat_spatial_defined)
+edd_obj2 <- filtered_data_eddmaps_florida %>%
+  filter(is.na(coordinateUncertaintyInMeters) | coordinateUncertaintyInMeters <= 1000) %>%
+  mutate(Source = "EDDMapS")
 
+# -----------------------------
+# 2) Extract population density for each record (raster)
+# -----------------------------
+pop_density <- raster("Data/fl_pop_density.tif")
+crs(pop_density) <- "+proj=longlat +datum=WGS84 +no_defs"
 
-library(scales)
-
-# Create a density histogram (Fixing up - MZ)
-ggplot(PopData_combined, aes(x = PopDensity, fill = Source, y = ..density..)) +
-  geom_density(alpha = 0.4, position = "dodge", bins = 30) +
-  scale_fill_manual(values = c("EDDMapS" = "#FD7B25", "iNaturalist" = "#A7FD25")) +
-  theme_minimal() +
-  scale_x_log10(labels = label_number()) +  # Format numbers without scientific notation
-  labs(
-    title = "Urbanization Density of Observations",
-    x = "Urbanization Level (PopDensity)",
-    y = "Density",
-    fill = "Dataset"
-  ) +
-  theme(text = element_text(family = "Times New Roman")) +
-  theme_classic()
-
-PopData_combined$LogPopDensity <- log(PopData_combined$PopDensity + 1)
-model_gaussian <- glm(LogPopDensity ~ Source, 
-                      data = PopData_combined,
-                      family = gaussian(link = "identity"))
-summary(model_gaussian)
-
-
-# model the data
-# make source a binary variable
-PopData_combined$Source <- factor(PopData_combined$Source)
-
-hist(PopData_combined$PopDensity)
-hist(PopData_combined$LogPopDensity)
-
-# fit a logistic regression
-# Using log-transformed population density
-model_logit <- glm(Source ~ LogPopDensity, 
-                   data = PopData_combined, 
-                   family = binomial)
-
-#summary(model_logit)
-
-# model check
-plot(model_logit)
-
-
-# Calculate comprehensive statistics for both original and log-transformed data
-pop_stats_detailed <- PopData_combined %>%
-  filter(!is.na(PopDensity)) %>%  # Remove missing values
-  group_by(Source) %>%
-  summarise(
-    n = n(),
-    # Original scale statistics
-    mean_pop_density = mean(PopDensity, na.rm = TRUE),
-    sd_pop_density = sd(PopDensity, na.rm = TRUE),
-    se_pop_density = sd(PopDensity, na.rm = TRUE) / sqrt(n()),
-    # Log scale statistics  
-    mean_log_pop_density = mean(LogPopDensity, na.rm = TRUE),
-    sd_log_pop_density = sd(LogPopDensity, na.rm = TRUE),
-    se_log_pop_density = sd(LogPopDensity, na.rm = TRUE) / sqrt(n()),
-    .groups = 'drop'
-  )
-
-print(pop_stats_detailed)
-
-# Display formatted results
-cat("Population Density Statistics:\n")
-cat("=============================\n")
-for(i in 1:nrow(pop_stats_detailed)) {
-  cat(sprintf("%s:\n", pop_stats_detailed$Source[i]))
-  cat(sprintf("  Original scale: Mean = %.2f ± %.2f (SD = %.2f, n = %d)\n", 
-              pop_stats_detailed$mean_pop_density[i],
-              pop_stats_detailed$se_pop_density[i],
-              pop_stats_detailed$sd_pop_density[i],
-              pop_stats_detailed$n[i]))
-  cat(sprintf("  Log scale: Mean = %.3f ± %.5f (SD = %.3f)\n\n", 
-              pop_stats_detailed$mean_log_pop_density[i],
-              pop_stats_detailed$se_log_pop_density[i],
-              pop_stats_detailed$sd_log_pop_density[i]))
+extract_popdensity <- function(df, r) {
+  pts <- st_as_sf(df, coords = c("Longitude", "Latitude"), crs = 4326, remove = FALSE)
+  df$PopDensity <- raster::extract(r, st_coordinates(pts))
+  df
 }
 
+inat_obj2 <- extract_popdensity(inat_obj2, pop_density)
+edd_obj2  <- extract_popdensity(edd_obj2,  pop_density)
 
+# combine + remove missing/non-finite + remove zeros (log + log10 plots require > 0)
+PopData_obj2 <- bind_rows(inat_obj2, edd_obj2) %>%
+  filter(!is.na(PopDensity), is.finite(PopDensity), PopDensity > 0)
 
+# -----------------------------
+# 3) Define response coding for binomial GLM (explicit + reproducible)
+#    Interpretation: odds(record is iNaturalist) vs EDDMapS
+# -----------------------------
+PopData_obj2 <- PopData_obj2 %>%
+  mutate(
+    Source = factor(Source, levels = c("EDDMapS", "iNaturalist")),  # EDDMapS reference
+    is_iNat = if_else(Source == "iNaturalist", 1L, 0L),
+    LogPopDensity = log(PopDensity)  # transformation for interpretability + functional form
+  )
 
+# -----------------------------
+# 4) Visual checks (reviewer-requested)
+#    A) Distribution (raw shown on log10 x-axis; log shown directly)
+# -----------------------------
+p_hist_raw <- ggplot(PopData_obj2, aes(x = PopDensity, fill = Source)) +
+  geom_histogram(position = "identity", alpha = 0.35, bins = 50) +
+  scale_x_log10(labels = label_number()) +
+  scale_fill_manual(values = c("EDDMapS" = "#FD7B25", "iNaturalist" = "#A7FD25")) +
+  labs(x = "Population density (persons/km²; log10 x-axis)",
+       y = "Count",
+       fill = "Platform") +
+  theme_classic()
+
+p_hist_log <- ggplot(PopData_obj2, aes(x = LogPopDensity, fill = Source)) +
+  geom_histogram(position = "identity", alpha = 0.35, bins = 50) +
+  scale_fill_manual(values = c("EDDMapS" = "#FD7B25", "iNaturalist" = "#A7FD25")) +
+  labs(x = "log(PopDensity)",
+       y = "Count",
+       fill = "Platform") +
+  theme_classic()
+
+print(p_hist_raw)
+print(p_hist_log)
+
+#    B) Empirical relationship: Pr(iNat) vs density (raw + log)
+p_prob_raw <- ggplot(PopData_obj2, aes(x = PopDensity, y = is_iNat)) +
+  geom_point(alpha = 0.05) +
+  geom_smooth(method = "gam", formula = y ~ s(x), se = TRUE, color = "black") +
+  scale_x_log10(labels = label_number()) +
+  labs(x = "Population density (persons/km²; log10 x-axis)",
+       y = "Pr(record is iNaturalist)") +
+  theme_classic()
+
+p_prob_log <- ggplot(PopData_obj2, aes(x = LogPopDensity, y = is_iNat)) +
+  geom_point(alpha = 0.05) +
+  geom_smooth(method = "gam", formula = y ~ s(x), se = TRUE, color = "black") +
+  labs(x = "log(PopDensity)",
+       y = "Pr(record is iNaturalist)") +
+  theme_classic()
+
+print(p_prob_raw)
+print(p_prob_log)
+
+# -----------------------------
+# 5) Primary model (binomial GLM)
+# -----------------------------
+m_logit <- glm(is_iNat ~ LogPopDensity, data = PopData_obj2, family = binomial)
+summary(m_logit)
+
+# Odds ratio (per 1-unit increase in log density)
+OR <- exp(coef(m_logit)["LogPopDensity"])
+CI <- exp(confint(m_logit)["LogPopDensity", ])
+cat("\nOdds ratio for iNaturalist (vs EDDMapS) per 1-unit increase in log(PopDensity):\n")
+cat(sprintf("  OR = %.3f (95%% CI: %.3f–%.3f)\n", OR, CI[1], CI[2]))
+
+# -----------------------------
+# 6) Model form comparison (simple + transparent)
+# -----------------------------
+m_logit_raw <- glm(is_iNat ~ PopDensity, data = PopData_obj2, family = binomial)
+cat("\nAIC comparison:\n")
+cat(sprintf("  AIC (raw PopDensity): %.2f\n", AIC(m_logit_raw)))
+cat(sprintf("  AIC (log PopDensity): %.2f\n", AIC(m_logit)))
+
+# -----------------------------
+# 7) Manuscript figure: density curves (same colors as before)
+# -----------------------------
+p_density <- ggplot(PopData_obj2, aes(x = PopDensity, fill = Source)) +
+  geom_density(alpha = 0.35) +
+  scale_x_log10(labels = label_number()) +
+  scale_fill_manual(values = c("EDDMapS" = "#FD7B25", "iNaturalist" = "#A7FD25")) +
+  labs(x = "Population density (persons/km²; log10 x-axis)",
+       y = "Density",
+       fill = "Platform") +
+  theme_classic()
+
+print(p_density)
+
+# So in manuscript we would explain that we did the log transformation for interpritability, not for an "assumption" requirement.
 
 
 
