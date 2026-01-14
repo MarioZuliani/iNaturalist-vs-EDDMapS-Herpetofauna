@@ -1,12 +1,10 @@
 ### Clean Code
-
 ### Map and Line Graph Figure 1 (Obj 1.)
 
 library(tidyverse)
 library(ggplot2)
 library(readr)
 library(dplyr)
-library(ggplot2)
 library(tidyr)
 library(sf)
 library(tigris)
@@ -18,62 +16,76 @@ library(scales)
 iNaturalist_introduced <- read.csv("Data/iNaturalist_introduced.csv")
 eddmaps_introduced_clean <- read.csv("Data/eddmaps_introduced.csv")
 presence <- read.csv("Data/species_presence_comparison.csv")
+
+# =========================
 # iNat cleanup
+# =========================
 iNat <- readRDS("Data/iNat_herp_data.RDS")
+
 filtered_data_iNat <- iNat %>%
   filter(species %in% iNaturalist_introduced$scientific_name) %>%
   filter(!(species %in% "Anaxyrus fowleri")) %>%
   filter(!(species %in% "Desmognathus conanti")) %>%
-  filter(!(species %in% "Pseudotriton ruber"))%>%
-  filter(!(species %in% "Eurycea cirrigera"))%>%
-  filter(!(species %in% "Eurycea guttolineata"))%>%
+  filter(!(species %in% "Pseudotriton ruber")) %>%
+  filter(!(species %in% "Eurycea cirrigera")) %>%
+  filter(!(species %in% "Eurycea guttolineata")) %>%
   filter(!(species %in% "Eretmochelys imbricata")) %>%
-  filter(!(species %in% "Desmognathus conanti")) %>%
   filter(!(species %in% "Incilius nebulifer")) %>%
   filter(!(species %in% "Lampropeltis rhombomaculata")) %>%
   filter(!(species %in% "Lepidochelys kempii")) %>%
   filter(!(species %in% "Lithobates virgatipes"))
 
-
 filtered_data_iNat <- filtered_data_iNat %>%
   dplyr::select(species, decimalLatitude, decimalLongitude, day, month, year, coordinateUncertaintyInMeters) %>%
-  filter(!is.na(decimalLatitude) & !is.na(decimalLongitude)) %>% 
-  filter(is.na(coordinateUncertaintyInMeters) | coordinateUncertaintyInMeters <= 1000)
-
-
-# Rename columns for latitude and longitude
-filtered_data_iNat <- filtered_data_iNat %>%
-  rename(Latitude = decimalLatitude, Longitude = decimalLongitude)
-
-filtered_data_iNat <- filtered_data_iNat %>%
-  mutate(Year = as.numeric(year)) %>%  # Convert Year to numeric
-  filter(Year >= 2010 & Year <= 2024) %>% # Filter for years 2010-2023
+  filter(!is.na(decimalLatitude) & !is.na(decimalLongitude)) %>%
+  # keep NA uncertainty; only drop > 1000
+  filter(is.na(coordinateUncertaintyInMeters) | coordinateUncertaintyInMeters <= 1000) %>%
+  rename(Latitude = decimalLatitude, Longitude = decimalLongitude) %>%
+  mutate(Year = as.numeric(year)) %>%
+  filter(Year >= 2010 & Year <= 2024) %>%
   mutate(source = "iNaturalist") %>%
   rename(Month = month, Day = day) %>%
   mutate(Month = as.numeric(Month), Day = as.numeric(Day), Year = as.numeric(Year))
 
 ### Plot a map to make sure all points are within Florida Boundary
 filtered_data_iNat_florida <- filtered_data_iNat %>%
-  filter(Latitude >= 24.396308 & Latitude <= 31.000888, 
-         Longitude >= -87.634938 & Longitude <= -80.031362) %>%
+  filter(
+    Latitude  >= 24.396308 & Latitude  <= 31.000888,
+    Longitude >= -87.634938 & Longitude <= -80.031362
+  ) %>%
   dplyr::select(-year)
 
-#EDDMapS
-eddmaps <- read.csv("Data/EDDmapS_observations.csv") ### Need to clean up the Eddmaps data.
+# =========================
+# EDDMapS cleanup + cross-post audit
+# =========================
+eddmaps <- read.csv("Data/EDDmapS_observations.csv")  ### Need to clean up the Eddmaps data.
 
 ### Run to pull all introduced species from the raw eddmaps data to the cleaned species list we have made.
-filtered_data_eddmaps <- eddmaps %>%
+eddmaps_introduced_pre <- eddmaps %>%
   filter(SciName %in% eddmaps_introduced_clean$scientific_name)
+
+# --- Detect cross-posts robustly (captures "iNaturalist Database", "iNaturalist Database", etc.) ---
+eddmaps_crossposts_pre <- eddmaps_introduced_pre %>%
+  filter(!is.na(reporter)) %>%
+  filter(str_detect(str_squish(str_to_lower(reporter)), "inaturalist"))
+
+# --- Remove cross-posts for platform-independence (case/whitespace safe) ---
+filtered_data_eddmaps <- eddmaps_introduced_pre %>%
+  filter(is.na(reporter) | !str_detect(str_squish(str_to_lower(reporter)), "inaturalist"))
+
+# (Optional) quick sanity prints
+cat("EDDMapS introduced-only rows (pre): ", nrow(eddmaps_introduced_pre), "\n")
+cat("EDDMapS iNat-crossposts detected (pre): ", nrow(eddmaps_crossposts_pre), "\n")
+cat("EDDMapS rows after removing crossposts: ", nrow(filtered_data_eddmaps), "\n\n")
 
 ### Select the columns relavent to MCPs
 filtered_data_eddmaps <- filtered_data_eddmaps %>%
   dplyr::select(SciName, ObsDate, Latitude, Longitude, CoordAcc) %>%
-  mutate(
-    coordinateUncertaintyInMeters = as.numeric(as.character(CoordAcc))
-  ) %>%
+  mutate(coordinateUncertaintyInMeters = as.numeric(as.character(CoordAcc))) %>%
   filter(
     !is.na(Latitude) & !is.na(Longitude),
-    is.na(coordinateUncertaintyInMeters) | coordinateUncertaintyInMeters <= 1000) %>%
+    is.na(coordinateUncertaintyInMeters) | coordinateUncertaintyInMeters <= 1000
+  ) %>%
   dplyr::select(-CoordAcc)
 
 filtered_data_eddmaps <- filtered_data_eddmaps %>%
@@ -83,13 +95,13 @@ filtered_data_eddmaps <- filtered_data_eddmaps %>%
     SciName == "Sphaerodactylus argus argus" ~ "Sphaerodactylus argus",
     SciName == "Anolis equestris persparsus" ~ "Anolis equestris",
     SciName == "Python molurus ssp. bivittatus" ~ "Python bivittatus",
-    SciName == "Boa constrictor constrictor"~ "Boa constrictor",
+    SciName == "Boa constrictor constrictor" ~ "Boa constrictor",
     SciName == "Anolis cristatellus cristatellus" ~ "Anolis cristatellus",
     SciName == "Bufo marinus" ~ "Rhinella marina",
     SciName == "Geochelone sulcata" ~ "Centrochelys sulcata",
     SciName == "Geochelone carbonaria" ~ "Chelonoidis carbonarius",
     SciName == "Chelonoidis denticulatus" ~ "Chelonoidis denticulata",
-    SciName == "Ramphotyphlops braminus"~ "Indotyphlops braminus",
+    SciName == "Ramphotyphlops braminus" ~ "Indotyphlops braminus",
     SciName == "Lygodactylus luteopicturatus" ~ "Lygodactylus picturatus",
     SciName == "Chelonoidis denticulata" ~ "Chelonoidis denticulatus",
     SciName == "Leiocephalus schreibersii schreibersii" ~ "Leiocephalus schreibersii",
@@ -102,58 +114,74 @@ filtered_data_eddmaps <- filtered_data_eddmaps %>%
     SciName == "Norops garmani" ~ "Anolis garmani",
     SciName == "Corallus hortulanus" ~ "Corallus hortulana",
     SciName == "Sphaerodactylus elegans elegans" ~ "Sphaerodactylus elegans",
-    TRUE ~ SciName  # Keep all other names unchanged
+    TRUE ~ SciName
   ))
 
-### Seperate the date stamp on Eddmaps
+### Separate the date stamp on EDDMapS
 filtered_data_eddmaps <- filtered_data_eddmaps %>%
-  separate(ObsDate, into = c("Month", "Day", "Year"), sep = "/")
-
-filtered_data_eddmaps <- filtered_data_eddmaps %>%
-  mutate(Year = as.numeric(Year)) %>%  # Convert Year to numeric
-  filter(Year >= 2010 & Year <= 2024) %>% # Filter for years 2010-2023
+  separate(ObsDate, into = c("Month", "Day", "Year"), sep = "/") %>%
+  mutate(Year = as.numeric(Year)) %>%
+  filter(Year >= 2010 & Year <= 2024) %>%
   mutate(source = "EDDMapS") %>%
   mutate(Month = as.numeric(Month), Day = as.numeric(Day), Year = as.numeric(Year)) %>%
   rename(species = SciName)
 
 # Define Florida's geographic boundaries for map
 filtered_data_eddmaps_florida <- filtered_data_eddmaps %>%
-  filter(Latitude >= 24.396308 & Latitude <= 31.000888, 
-         Longitude >= -87.634938 & Longitude <= -80.031362)
+  filter(
+    Latitude  >= 24.396308 & Latitude  <= 31.000888,
+    Longitude >= -87.634938 & Longitude <= -80.031362
+  )
 
+# =========================
+# Cross-post audit summary (simple + consistent with YOUR pipeline)
+# =========================
+edd_crosspost_removed_summary <- tibble(
+  dataset = "EDDMapS",
+  crossposts_detected_introduced_pre = nrow(eddmaps_crossposts_pre),
+  removed_at_introduced_step = nrow(eddmaps_crossposts_pre),  # you removed ALL detected crossposts here
+  eddmaps_final_n = nrow(filtered_data_eddmaps_florida),
+  pct_of_final_removed_as_crossposts = round(
+    100 * nrow(eddmaps_crossposts_pre) / max(1, nrow(filtered_data_eddmaps_florida)),
+    4
+  )
+)
 
+print(edd_crosspost_removed_summary)
+
+# =========================
 # Join them
-combined_data <- bind_rows(filtered_data_eddmaps_florida, filtered_data_iNat_florida) 
+# =========================
+combined_data <- bind_rows(filtered_data_eddmaps_florida, filtered_data_iNat_florida)
 
 combined_obs_coordinates <- combined_data %>%
-  dplyr::select(Longitude, Latitude, source) %>%  # Adjust column names based on your dataset
+  dplyr::select(Longitude, Latitude, source) %>%
   na.omit() %>%
   st_as_sf(coords = c("Longitude", "Latitude"), crs = 4326)
 
 fl_coordinates <- combined_obs_coordinates %>%
   filter(
-    st_coordinates(.)[,2] >= 24.396308 & st_coordinates(.)[,2] <= 31.000968 &  # Latitude bounds
-      st_coordinates(.)[,1] >= -87.6349 & st_coordinates(.)[,1] <= -80.031362     # Longitude bounds
+    st_coordinates(.)[,2] >= 24.396308 & st_coordinates(.)[,2] <= 31.000968 &
+      st_coordinates(.)[,1] >= -87.6349 & st_coordinates(.)[,1] <= -80.031362
   )
 
 location_obs_counts <- fl_coordinates %>%
   group_by(geometry) %>%
   summarize(total_obs = n(), .groups = "drop")
 
-
 # Step 1: Get Florida counties shapefile
-fl_counties <- counties(state = "FL", cb = TRUE, class = "sf") %>% 
-  st_transform(crs = 4326)  # Ensure CRS is consistent
+fl_counties <- counties(state = "FL", cb = TRUE, class = "sf") %>%
+  st_transform(crs = 4326)
 
 # Step 2: Ensure observation points have the same CRS
-fl_coordinates <- fl_coordinates %>% 
-  st_transform(crs = 4326)  
+fl_coordinates <- fl_coordinates %>%
+  st_transform(crs = 4326)
 
 # Step 3: Spatial Join - Assign each observation to a county
 observations_per_county <- st_join(fl_coordinates, fl_counties, join = st_within) %>%
-  st_drop_geometry() %>%  # Remove spatial information to avoid issues with join
-  group_by(NAME, source) %>%  # Group by county name
-  summarize(total_obs = n(), .groups = "drop")  # Count observations per county
+  st_drop_geometry() %>%
+  group_by(NAME, source) %>%
+  summarize(total_obs = n(), .groups = "drop")
 
 # Step 4: Merge with Florida county shapefile
 fl_counties <- left_join(fl_counties, observations_per_county, by = "NAME")
@@ -173,33 +201,33 @@ Fig_1_Map <- ggplot(fl_counties) +
   scale_fill_viridis_c(
     option = "cividis",
     trans = "log",
-    breaks = c(0, 10, 100, 1000, 10000),  # Adjust based on your range
-    labels = scales::comma,  # Ensures whole numbers in legend
+    breaks = c(0, 10, 100, 1000, 10000),
+    labels = scales::comma,
     na.value = "gray80"
   ) +
   facet_wrap(~source, labeller = labeller(source = source_labels)) +
-  theme_classic() +  
+  theme_classic() +
   theme(
     axis.text.x = element_text(size = 11),
     axis.text.y = element_text(size = 11),
-    strip.text = element_text(size = 9.5, face = "bold"),  # Make the facet titles bold and larger
-    panel.spacing = unit(1.5, "cm"),  # Increase the space between panels
-    plot.margin = margin(0.5, 0.5, 0.5, 0.5, "cm")  # Add margins around the entire plot
+    strip.text = element_text(size = 9.5, face = "bold"),
+    panel.spacing = unit(1.5, "cm"),
+    plot.margin = margin(0.5, 0.5, 0.5, 0.5, "cm")
   ) +
   labs(fill = "Total Observations")
 
-# Display the map
 Fig_1_Map
 
-#get a summary of iNat data
+# =========================
+# Scatter / model bits (unchanged)
+# =========================
 iNat_obs_summary <- filtered_data_iNat %>%
   group_by(species) %>%
-  summarize(inat_number_of_obs=n()) 
+  summarize(inat_number_of_obs = n())
 
-# get a summary of EDDMaps data
 EDDMaps_obs_summary <- filtered_data_eddmaps %>%
   group_by(species) %>%
-  summarize(eddmaps_number_of_obs=n())
+  summarize(eddmaps_number_of_obs = n())
 
 iNatandEddMap_combined <- iNat_obs_summary %>%
   left_join(EDDMaps_obs_summary)
@@ -207,7 +235,6 @@ iNatandEddMap_combined <- iNat_obs_summary %>%
 iNatandEddMap_matched <- iNatandEddMap_combined %>%
   dplyr::filter(complete.cases(.))
 
-# First, create a new column to identify the target species
 iNatandEddMap_matched <- iNatandEddMap_matched %>%
   mutate(highlight_species = case_when(
     species == "Iguana iguana" ~ "Iguana iguana",
@@ -234,103 +261,42 @@ Fig_1_Line <- ggplot(iNatandEddMap_matched, aes(x = inat_number_of_obs, y = eddm
     axis.text.x = element_text(size = 11),
     axis.text.y = element_text(size = 11)
   )
+
 Fig_1_Line
 
-
-# comparison of iNaturalist and eddmaps counts
 model_nb_log <- MASS::glm.nb(eddmaps_number_of_obs ~ log(inat_number_of_obs + 1),
                              data = iNatandEddMap_matched)
-
 summary(model_nb_log)
 
-
-# spearman's correlation
 cor.test(iNatandEddMap_matched$inat_number_of_obs,
          iNatandEddMap_matched$eddmaps_number_of_obs,
          method = "spearman")
 
-
-# Create a list of all unique species from both datasets
+# Presence table
 all_species <- unique(c(filtered_data_iNat$species, filtered_data_eddmaps$species))
 
-# Create a new dataframe to store presence information
 presence_df <- data.frame(Species = all_species,
                           iNaturalist_Present = NA,
                           EDDMapS_Present = NA)
 
-# Check presence in iNaturalist dataset
 presence_df$iNaturalist_Present <- ifelse(presence_df$Species %in% filtered_data_iNat_florida$species, "Yes", "No")
-
-# Check presence in EDDMapS dataset
 presence_df$EDDMapS_Present <- ifelse(presence_df$Species %in% filtered_data_eddmaps_florida$species, "Yes", "No")
 
-# Sort alphabetically by species name
 presence_df <- presence_df[order(presence_df$Species), ]
 
-# Print the first few rows to verify
 head(presence_df)
 
-# Show the total number of species
 cat("Total number of unique species:", nrow(presence_df), "\n")
-
-# Count species present in each dataset
 cat("Species present in iNaturalist:", sum(presence_df$iNaturalist_Present == "Yes"), "\n")
 cat("Species present in EDDMapS:", sum(presence_df$EDDMapS_Present == "Yes"), "\n")
-
-# Count species present in both datasets
-cat("Species present in both datasets:", 
+cat("Species present in both datasets:",
     sum(presence_df$iNaturalist_Present == "Yes" & presence_df$EDDMapS_Present == "Yes"), "\n")
-
-# Count species present in only one dataset
-cat("Species present only in iNaturalist:", 
+cat("Species present only in iNaturalist:",
     sum(presence_df$iNaturalist_Present == "Yes" & presence_df$EDDMapS_Present == "No"), "\n")
-cat("Species present only in EDDMapS:", 
+cat("Species present only in EDDMapS:",
     sum(presence_df$iNaturalist_Present == "No" & presence_df$EDDMapS_Present == "Yes"), "\n")
 
-# Save the dataframe to a CSV file
-#write.csv(presence_df, "species_presence_comparison.csv", row.names = FALSE)
-
-
-
-iNatandEddMap_matched <- iNatandEddMap_matched %>%
-  mutate(highlight_species = case_when(
-    species == "Iguana iguana" ~ "Iguana iguana",
-    species == "Salvator merianae" ~ "Salvator merianae",
-    species == "Leiocephalus carinatus" ~ "Leiocephalus carinatus",
-    TRUE ~ "Other species"
-  ))
-
-
-# Then create the plot with highlighted species
-Fig_1_Line_species <- ggplot(iNatandEddMap_matched, aes(x=inat_number_of_obs, y=eddmaps_number_of_obs)) +
-  # Add background points first (grey for "Other species")
-  geom_point(data = subset(iNatandEddMap_matched, highlight_species == "Other species"), 
-             color = "grey80", alpha = 0.5) +
-  # Add highlighted species with different colors and slightly larger size
-  geom_point(data = subset(iNatandEddMap_matched, highlight_species != "Other species"), 
-             aes(color = highlight_species), size = 3) +
-  # Add text labels for the highlighted species
-  scale_x_log10() +
-  scale_y_log10() +
-  geom_smooth(method = "lm", color = "black") +
-  scale_color_manual(values = c(
-    "Iguana iguana" = "red",
-    "Salvator merianae" = "blue",
-    "Leiocephalus carinatus" = "green4"
-  )) +
-  labs(x = "iNaturalist observations",
-       y = "EDDMapS observations",
-       color = "Species") +
-  theme_classic() +
-  theme(legend.position = "bottom")
-
-# Print the plot
-Fig_1_Line_species
-
-
-
 # Pie chart code
-
 presence <- read.csv("Data/species_presence_comparison.csv")
 presence <- presence %>%
   filter(!(Species %in% "Basiliscus spp.")) %>%
@@ -341,42 +307,58 @@ presence <- presence %>%
   rename(iNaturalist = iNaturalist_Present) %>%
   rename(EDDMapS = EDDMapS_Present)
 
-
-# Create the comparison categories
 presence_summary <- presence %>%
   mutate(
     Category = case_when(
       iNaturalist == "Yes" & EDDMapS == "Yes" ~ "Both platforms",
       iNaturalist == "Yes" & EDDMapS == "No" ~ "iNaturalist only",
       iNaturalist == "No" & EDDMapS == "Yes" ~ "EDDMapS only",
-      TRUE ~ "Neither" # This would be species not observed on either platform
+      TRUE ~ "Neither"
     )
   ) %>%
   count(Category) %>%
-  filter(Category != "Neither") # Remove if you don't want to show species not on either platform
+  filter(Category != "Neither")
 
-# Create the pie chart
 ggplot(presence_summary, aes(x = "", y = n, fill = Category)) +
   geom_col(width = 1) +
   coord_polar("y", start = 0) +
   scale_fill_manual(values = c(
     "Both platforms" = "#7FB069",
-    "iNaturalist only" = "#A7FD25", 
+    "iNaturalist only" = "#A7FD25",
     "EDDMapS only" = "#FD7B25"
   )) +
   theme_void() +
-  labs(
-    title = NULL,
-    fill = "Platform"
-  ) +
+  labs(title = NULL, fill = "Platform") +
   theme(
     text = element_text(family = "Times New Roman"),
     plot.title = element_text(hjust = 0.5, size = 14),
     legend.position = "none"
   ) +
-  geom_text(aes(label = paste0(n, "\n(", round(n/sum(n)*100, 1), "%)")), 
+  geom_text(aes(label = paste0(n, "\n(", round(n/sum(n)*100, 1), "%)")),
             position = position_stack(vjust = 0.5),
             size = 6)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1434,6 +1416,13 @@ both_species_counts <- species_groups %>%
   mutate(prop_species = n_species / sum(n_species))
 
 both_species_counts
+
+
+
+
+
+
+
 
 
 # =======================================================
