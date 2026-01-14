@@ -192,6 +192,7 @@ source_labels <- c(
   iNaturalist = paste0("iNaturalist (n = ", format(inat_total, big.mark = ","), ")")
 )
 
+
 # Create the map with custom facet labels and improved spacing
 Fig_1_Map <- ggplot(fl_counties) +
   geom_sf(aes(fill = total_obs), color = "black") +
@@ -209,11 +210,13 @@ Fig_1_Map <- ggplot(fl_counties) +
     axis.text.y = element_text(size = 11),
     strip.text = element_text(size = 9.5, face = "bold"),
     panel.spacing = unit(1.5, "cm"),
-    plot.margin = margin(0.5, 0.5, 0.5, 0.5, "cm")
+    plot.margin = margin(0.5, 0.5, 0.5, 0.5, "cm"),
+    legend.position = "none"   # <- remove legend
   ) +
   labs(fill = "Total Observations")
 
 Fig_1_Map
+
 
 
 # ============================================================
@@ -1200,9 +1203,11 @@ Fig_1_Line_with_platforms <- ggplot() +
     x = "iNaturalist observations",
     y = "EDDMapS observations"
   ) +
-  theme_classic()
+  theme_classic() +
+  theme(legend.position = "none")   # <- drop legend
 
 Fig_1_Line_with_platforms
+
 
 
 
