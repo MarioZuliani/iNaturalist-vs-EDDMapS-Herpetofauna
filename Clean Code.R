@@ -629,11 +629,17 @@ ggsave("Figures/species_traists_platform.jpeg", height=8, width=8, units="in")
 
 
 
+
+
+
+
+
+
 ### Density Histogram for Urbanization (Obj 2.)
 
 #Convert the data to an sf object with spatial coordinates.
-iNat_spatial <- iNat %>%
-  st_as_sf(coords=c("decimalLongitude", "decimalLatitude"), crs=4326)
+iNat_spatial <- filtered_data_iNat_florida %>%
+  st_as_sf(coords = c("Longitude", "Latitude"), crs = 4326)
 
 #Load the population density raster file.
 pop_density <- raster("Data/fl_pop_density.tif")
@@ -649,31 +655,27 @@ iNat_spatial$PopDensity <- raster::extract(pop_density, st_coordinates(iNat_spat
 
 #define urbanization levels MAKE IT A CONTINUOUS GRADIENT TO AVOID CATEGORIZATION DEFENSE
 iNat_spatial_defined <- iNat_spatial %>%
-  mutate(Urbanization = PopDensity) %>%  # Assign population density as urbanization
-  st_drop_geometry() %>%  # Remove spatial attributes
-  as.data.frame() %>%  # Ensure it's a regular data frame
-  dplyr::select(PopDensity, Urbanization, species, eventDate, coordinateUncertaintyInMeters)
+  mutate(Urbanization = PopDensity) %>%
+  st_drop_geometry() %>%
+  as.data.frame() %>%
+  dplyr::select(PopDensity, Urbanization, species, Year, Month, Day, coordinateUncertaintyInMeters)
 
 
-EDDmaps <- read_csv("Data/EDDMapS_observations.csv")
 
-# Remove rows with missing coordinates
-EDDmaps_clean <- EDDmaps %>%
-  filter(!is.na(Longitude) & !is.na(Latitude))
-
-# Convert to sf object
-EDDmaps_spatial <- EDDmaps_clean %>%
+EDDmaps_spatial <- filtered_data_eddmaps_florida %>%
   st_as_sf(coords = c("Longitude", "Latitude"), crs = 4326)
+
 
 # Extract population density for EDDMapS observations
 EDDmaps_spatial$PopDensity <- raster::extract(pop_density, st_coordinates(EDDmaps_spatial))
 
 # Convert to data frame and retain necessary columns
 EDDmaps_spatial_defined <- EDDmaps_spatial %>%
-  mutate(Urbanization = PopDensity) %>%  # Assign population density as urbanization
+  mutate(Urbanization = PopDensity) %>%
   st_drop_geometry() %>%
   as.data.frame() %>%
-  dplyr::select(PopDensity, Urbanization, SciName, ObsDate)
+  dplyr::select(PopDensity, Urbanization, species, Year, Month, Day, coordinateUncertaintyInMeters)
+
 
 # Add a new column to identify the source dataset
 EDDmaps_spatial_defined <- EDDmaps_spatial_defined %>%
@@ -723,7 +725,7 @@ model_logit <- glm(Source ~ LogPopDensity,
                    data = PopData_combined, 
                    family = binomial)
 
-summary(model_logit)
+#summary(model_logit)
 
 # model check
 plot(model_logit)
