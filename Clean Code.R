@@ -286,6 +286,17 @@ presence_df <- tibble(Species = all_species) %>%
     EDDMapS     = if_else(Species %in% filtered_data_eddmaps_florida$species, "Yes", "No")
   )
 
+# clean the data
+presence_df <- presence_df %>%
+  filter(!(Species %in% c("Basiliscus spp.", "Iguana spp.", "Leiocephalus spp.", "Python spp.", "Trioceros spp."))) %>%
+  mutate(Species = str_extract(Species, "^\\S+\\s+\\S+")) %>% # remove subspecies level detail
+  group_by(Species) %>%
+  summarise(
+    iNaturalist = if_else(any(iNaturalist == "Yes", na.rm = TRUE), "Yes", "No"),
+    EDDMapS     = if_else(any(EDDMapS == "Yes",     na.rm = TRUE), "Yes", "No"),
+    .groups = "drop"
+  )
+
 head(presence_df)
 
 cat("Total number of unique species:", nrow(presence_df), "\n")
