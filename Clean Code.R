@@ -41,7 +41,7 @@ filtered_data_iNat <- filtered_data_iNat %>%
   # NOTE (Obj 1): no coordinate uncertainty filter applied
   rename(Latitude = decimalLatitude, Longitude = decimalLongitude) %>%
   mutate(Year = as.numeric(year)) %>%
-  filter(Year >= 2010 & Year <= 2024) %>%
+  filter(Year >= 2014 & Year <= 2024) %>%
   mutate(source = "iNaturalist") %>%
   rename(Month = month, Day = day) %>%
   mutate(Month = as.numeric(Month), Day = as.numeric(Day), Year = as.numeric(Year))
@@ -118,10 +118,11 @@ filtered_data_eddmaps <- filtered_data_eddmaps %>%
 filtered_data_eddmaps <- filtered_data_eddmaps %>%
   separate(ObsDate, into = c("Month", "Day", "Year"), sep = "/") %>%
   mutate(Year = as.numeric(Year)) %>%
-  filter(Year >= 2010 & Year <= 2024) %>%
+  filter(Year >= 2014 & Year <= 2024) %>%
   mutate(source = "EDDMapS") %>%
   mutate(Month = as.numeric(Month), Day = as.numeric(Day), Year = as.numeric(Year)) %>%
   rename(species = SciName)
+
 
 # Define Florida's geographic boundaries for map
 filtered_data_eddmaps_florida <- filtered_data_eddmaps %>%
@@ -309,14 +310,13 @@ cat("Species present only in iNaturalist:",
 cat("Species present only in EDDMapS:",
     sum(presence_df$iNaturalist == "No" & presence_df$EDDMapS == "Yes"), "\n")
 
+write_csv(presence_df, "Data/species_presence_up.csv")
 
 # =========================
 # Pie chart (NEW: uses presence_df; no CSV)
 # =========================
-presence_for_pie <- presence_df %>%
-  filter(!(Species %in% c("Basiliscus spp.", "Iguana spp.", "Leiocephalus spp.", "Python spp.", "Trioceros spp.")))
 
-presence_summary <- presence_for_pie %>%
+presence_summary <- presence_df %>%
   mutate(
     Category = case_when(
       iNaturalist == "Yes" & EDDMapS == "Yes" ~ "Both platforms",
