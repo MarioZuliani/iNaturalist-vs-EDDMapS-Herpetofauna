@@ -387,7 +387,11 @@ trait_inat_eddmaps <- left_join(iNatandEddMap_matched, trait_data_rep, by=c("spe
 trait_data_amp <- read_csv("Data/AmphiBIO_v1.csv")
 
 # let's see how many species we can gather trait data on from our dataset
-trait_inat_eddmaps <- left_join(trait_inat_eddmaps, trait_data_amp, by=c("species"="Species"))
+trait_inat_eddmaps <- left_join(trait_inat_eddmaps, trait_data_amp %>% dplyr::select(-Order, -Family, -Genus), by=c("species"="Species"))
+
+trait_inat_eddmaps <- trait_inat_eddmaps %>%
+  filter(inat_number_of_obs > 0, 
+         eddmaps_number_of_obs > 0)
 
 # let's repeat the analysis above while incorporating some species traits
 # the traits we would be most interested in are: habitat type, active time, maximum body mass
@@ -395,7 +399,7 @@ trait_inat_eddmaps <- left_join(trait_inat_eddmaps, trait_data_amp, by=c("specie
 trait_inat_eddmaps_prep <- trait_inat_eddmaps %>%
   dplyr::select(species, inat_number_of_obs, eddmaps_number_of_obs, 
          `Habitat type`, `Active time`, `Maximum body mass (g)`,
-         Diu, Noc, Crepu, Body_mass_g, Fos, Ter, Aqu, Arb)
+         Diu, Noc, Crepu, Body_mass_g, Fos, Ter, Aqu, Arb) 
 
 trait_inat_eddmaps_clean <- trait_inat_eddmaps_prep %>%
   mutate(
@@ -413,14 +417,14 @@ trait_inat_eddmaps_clean <- trait_inat_eddmaps_prep %>%
 
 # what percentage of data do we now have trait data for?
 nrow(trait_inat_eddmaps %>% filter(complete.cases(Genus)))/nrow(trait_inat_eddmaps)*100
-# 88.6%
+# 82.0%
 nrow(trait_inat_eddmaps_clean %>% filter(!is.na(`Habitat type`) | !is.na(`Active time`) | !is.na(`Maximum body mass (g)`) |
                                            !is.na(Fos) | !is.na(Ter) | !is.na(Aqu) | !is.na(Arb)))/
   nrow(trait_inat_eddmaps_clean)
 
 # how many amphibian species do we have habitat data on?
 nrow(trait_inat_eddmaps_clean %>% filter(!is.na(Fos) | !is.na(Ter) | !is.na(Aqu) | !is.na(Arb)))
-# only 6, so let's focus the habitat analysis only on reptiles
+# only 7, so let's focus the habitat analysis only on reptiles
 
 # now, we will use our earlier spearman's rank correlation to assess these different categories
 
@@ -455,6 +459,8 @@ cor.test(nocturnal$inat_number_of_obs,
 
 # get log ratio of iNaturalist observations
 trait_inat_eddmaps_clean <- trait_inat_eddmaps_clean %>%
+  filter(inat_number_of_obs > 0,
+         eddmaps_number_of_obs > 0) %>%
   mutate(
     inat_prop = inat_number_of_obs / sum(inat_number_of_obs, na.rm = TRUE),
     eddmaps_prop = eddmaps_number_of_obs / sum(eddmaps_number_of_obs, na.rm = TRUE),
@@ -497,12 +503,8 @@ coefs <- coefs %>%
     upper = Estimate + 1.96*SE
   )
 
-# Add a column for color
-coefs <- coefs %>%
-  mutate(color = ifelse(Activity == "Nocturnal", "blue", "black"))
-
 # Coefficient plot with Nocturnal in blue
-(coef_activity <- ggplot(coefs, aes(x = Activity, y = Estimate, color = color)) +
+(coef_activity <- ggplot(coefs, aes(x = Activity, y = Estimate)) +
   geom_point(size = 4) +
   geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.2) +
   geom_hline(yintercept = 0, linetype = "dashed") +
