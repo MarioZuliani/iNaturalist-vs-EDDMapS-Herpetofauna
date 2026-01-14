@@ -58,13 +58,13 @@ filtered_data_iNat_florida <- filtered_data_iNat %>%
 # =========================
 # EDDMapS cleanup + cross-post audit
 # =========================
-eddmaps <- read.csv("Data/EDDmapS_observations.csv")  ### Need to clean up the Eddmaps data.
+eddmaps <- read.csv("Data/EDDMapS_observations.csv")  ### Need to clean up the Eddmaps data.
 
 ### Run to pull all introduced species from the raw eddmaps data to the cleaned species list we have made.
 eddmaps_introduced_pre <- eddmaps %>%
   filter(SciName %in% eddmaps_introduced_clean$scientific_name)
 
-# --- Detect cross-posts robustly (captures "iNaturalist Database", "iNaturalist Database", etc.) ---
+# --- Detect cross-posts robustly (captures "iNaturalist Database", etc.) ---
 eddmaps_crossposts_pre <- eddmaps_introduced_pre %>%
   filter(!is.na(reporter)) %>%
   filter(str_detect(str_squish(str_to_lower(reporter)), "inaturalist"))
@@ -139,14 +139,13 @@ filtered_data_eddmaps_florida <- filtered_data_eddmaps %>%
 edd_crosspost_removed_summary <- tibble(
   dataset = "EDDMapS",
   crossposts_detected_introduced_pre = nrow(eddmaps_crossposts_pre),
-  removed_at_introduced_step = nrow(eddmaps_crossposts_pre),  # you removed ALL detected crossposts here
+  removed_at_introduced_step = nrow(eddmaps_crossposts_pre),
   eddmaps_final_n = nrow(filtered_data_eddmaps_florida),
   pct_of_final_removed_as_crossposts = round(
     100 * nrow(eddmaps_crossposts_pre) / max(1, nrow(filtered_data_eddmaps_florida)),
     4
   )
 )
-
 print(edd_crosspost_removed_summary)
 
 # =========================
@@ -218,24 +217,30 @@ Fig_1_Map <- ggplot(fl_counties) +
 
 Fig_1_Map
 
-# =========================
-# Scatter / model bits (unchanged)
-# =========================
-iNat_obs_summary <- filtered_data_iNat %>%
-  group_by(species) %>%
-  summarize(inat_number_of_obs = n())
 
-EDDMaps_obs_summary <- filtered_data_eddmaps %>%
-  group_by(species) %>%
-  summarize(eddmaps_number_of_obs = n())
+# ============================================================
+# UPDATED Scatter / model / presence / pie chart (USE NEW DATA)
+# ============================================================
 
-iNatandEddMap_combined <- iNat_obs_summary %>%
-  left_join(EDDMaps_obs_summary)
+# --- Per-species counts built from the NEW Florida-filtered tables ---
+iNat_obs_summary <- filtered_data_iNat_florida %>%
+  count(species, name = "inat_number_of_obs")
 
-iNatandEddMap_matched <- iNatandEddMap_combined %>%
-  dplyr::filter(complete.cases(.))
+EDDMaps_obs_summary <- filtered_data_eddmaps_florida %>%
+  count(species, name = "eddmaps_number_of_obs")
 
-iNatandEddMap_matched <- iNatandEddMap_matched %>%
+iNatandEddMap_matched <- full_join(iNat_obs_summary, EDDMaps_obs_summary, by = "species") %>%
+  mutate(
+    inat_number_of_obs    = replace_na(inat_number_of_obs, 0L),
+    eddmaps_number_of_obs = replace_na(eddmaps_number_of_obs, 0L)
+  )
+
+# (Recommended) model/correlation only for species present on BOTH platforms
+iNatandEddMap_both <- iNatandEddMap_matched %>%
+  filter(inat_number_of_obs > 0, eddmaps_number_of_obs > 0)
+
+# Optional highlight column (kept, but not required)
+iNatandEddMap_both <- iNatandEddMap_both %>%
   mutate(highlight_species = case_when(
     species == "Iguana iguana" ~ "Iguana iguana",
     species == "Lepidodactylus lugubris" ~ "Lepidodactylus lugubris",
@@ -243,18 +248,15 @@ iNatandEddMap_matched <- iNatandEddMap_matched %>%
     TRUE ~ "Other species"
   ))
 
-#write.csv(iNatandEddMap_matched, "combined.csv")
-iNatandEddMap_matched <- read.csv("Data/combined.csv")
-
-Fig_1_Line <- ggplot(iNatandEddMap_matched, aes(x = inat_number_of_obs, y = eddmaps_number_of_obs)) +
+# --- Scatter plot (now reflects NEW cleaned counts) ---
+Fig_1_Line <- ggplot(iNatandEddMap_both, aes(x = inat_number_of_obs, y = eddmaps_number_of_obs)) +
   geom_point() +
   geom_smooth(method = "lm") +
   scale_x_log10(limits = c(1, NA)) +
   scale_y_log10(limits = c(1, NA)) +
   labs(
     x = "iNaturalist observations",
-    y = "EDDMapS observations",
-    color = "Species"
+    y = "EDDMapS observations"
   ) +
   theme_classic() +
   theme(
@@ -264,55 +266,54 @@ Fig_1_Line <- ggplot(iNatandEddMap_matched, aes(x = inat_number_of_obs, y = eddm
 
 Fig_1_Line
 
+# --- comparison of iNaturalist and eddmaps counts (NEW) ---
 model_nb_log <- MASS::glm.nb(eddmaps_number_of_obs ~ log(inat_number_of_obs + 1),
-                             data = iNatandEddMap_matched)
+                             data = iNatandEddMap_both)
 summary(model_nb_log)
 
-cor.test(iNatandEddMap_matched$inat_number_of_obs,
-         iNatandEddMap_matched$eddmaps_number_of_obs,
+# --- spearman's correlation (NEW) ---
+cor.test(iNatandEddMap_both$inat_number_of_obs,
+         iNatandEddMap_both$eddmaps_number_of_obs,
          method = "spearman")
 
-# Presence table
-all_species <- unique(c(filtered_data_iNat$species, filtered_data_eddmaps$species))
 
-presence_df <- data.frame(Species = all_species,
-                          iNaturalist_Present = NA,
-                          EDDMapS_Present = NA)
+# =========================
+# Presence table (NEW: derived from NEW cleaned FL data; no CSV)
+# =========================
+all_species <- sort(unique(c(filtered_data_iNat_florida$species,
+                             filtered_data_eddmaps_florida$species)))
 
-presence_df$iNaturalist_Present <- ifelse(presence_df$Species %in% filtered_data_iNat_florida$species, "Yes", "No")
-presence_df$EDDMapS_Present <- ifelse(presence_df$Species %in% filtered_data_eddmaps_florida$species, "Yes", "No")
-
-presence_df <- presence_df[order(presence_df$Species), ]
+presence_df <- tibble(Species = all_species) %>%
+  mutate(
+    iNaturalist = if_else(Species %in% filtered_data_iNat_florida$species, "Yes", "No"),
+    EDDMapS     = if_else(Species %in% filtered_data_eddmaps_florida$species, "Yes", "No")
+  )
 
 head(presence_df)
 
 cat("Total number of unique species:", nrow(presence_df), "\n")
-cat("Species present in iNaturalist:", sum(presence_df$iNaturalist_Present == "Yes"), "\n")
-cat("Species present in EDDMapS:", sum(presence_df$EDDMapS_Present == "Yes"), "\n")
+cat("Species present in iNaturalist:", sum(presence_df$iNaturalist == "Yes"), "\n")
+cat("Species present in EDDMapS:", sum(presence_df$EDDMapS == "Yes"), "\n")
 cat("Species present in both datasets:",
-    sum(presence_df$iNaturalist_Present == "Yes" & presence_df$EDDMapS_Present == "Yes"), "\n")
+    sum(presence_df$iNaturalist == "Yes" & presence_df$EDDMapS == "Yes"), "\n")
 cat("Species present only in iNaturalist:",
-    sum(presence_df$iNaturalist_Present == "Yes" & presence_df$EDDMapS_Present == "No"), "\n")
+    sum(presence_df$iNaturalist == "Yes" & presence_df$EDDMapS == "No"), "\n")
 cat("Species present only in EDDMapS:",
-    sum(presence_df$iNaturalist_Present == "No" & presence_df$EDDMapS_Present == "Yes"), "\n")
+    sum(presence_df$iNaturalist == "No" & presence_df$EDDMapS == "Yes"), "\n")
 
-# Pie chart code
-presence <- read.csv("Data/species_presence_comparison.csv")
-presence <- presence %>%
-  filter(!(Species %in% "Basiliscus spp.")) %>%
-  filter(!(Species %in% "Iguana spp.")) %>%
-  filter(!(Species %in% "Leiocephalus spp.")) %>%
-  filter(!(Species %in% "Python spp.")) %>%
-  filter(!(Species %in% "Trioceros spp.")) %>%
-  rename(iNaturalist = iNaturalist_Present) %>%
-  rename(EDDMapS = EDDMapS_Present)
 
-presence_summary <- presence %>%
+# =========================
+# Pie chart (NEW: uses presence_df; no CSV)
+# =========================
+presence_for_pie <- presence_df %>%
+  filter(!(Species %in% c("Basiliscus spp.", "Iguana spp.", "Leiocephalus spp.", "Python spp.", "Trioceros spp.")))
+
+presence_summary <- presence_for_pie %>%
   mutate(
     Category = case_when(
       iNaturalist == "Yes" & EDDMapS == "Yes" ~ "Both platforms",
       iNaturalist == "Yes" & EDDMapS == "No" ~ "iNaturalist only",
-      iNaturalist == "No" & EDDMapS == "Yes" ~ "EDDMapS only",
+      iNaturalist == "No"  & EDDMapS == "Yes" ~ "EDDMapS only",
       TRUE ~ "Neither"
     )
   ) %>%
