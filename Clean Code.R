@@ -12,6 +12,8 @@ library(raster)
 library(purrr)
 library(patchwork)
 library(scales)
+library(car)
+library(DHARMa)
 
 iNaturalist_introduced <- read.csv("Data/iNaturalist_introduced.csv")
 eddmaps_introduced_clean <- read.csv("Data/eddmaps_introduced.csv")
@@ -834,9 +836,8 @@ PopData_obj2 <- PopData_obj2 %>%
 # -----------------------------
 p_hist_raw <- ggplot(PopData_obj2, aes(x = PopDensity, fill = Source)) +
   geom_histogram(position = "identity", alpha = 0.35, bins = 50) +
-  scale_x_log10(labels = label_number()) +
   scale_fill_manual(values = c("EDDMapS" = "#FD7B25", "iNaturalist" = "#A7FD25")) +
-  labs(x = "Population density (persons/km²; log10 x-axis)",
+  labs(x = "Population density (persons/km²)",
        y = "Count",
        fill = "Platform") +
   theme_classic()
@@ -844,13 +845,18 @@ p_hist_raw <- ggplot(PopData_obj2, aes(x = PopDensity, fill = Source)) +
 p_hist_log <- ggplot(PopData_obj2, aes(x = LogPopDensity, fill = Source)) +
   geom_histogram(position = "identity", alpha = 0.35, bins = 50) +
   scale_fill_manual(values = c("EDDMapS" = "#FD7B25", "iNaturalist" = "#A7FD25")) +
-  labs(x = "log(PopDensity)",
+  labs(x = "Log-transformed population density (persons/km²)",
        y = "Count",
        fill = "Platform") +
   theme_classic()
 
 print(p_hist_raw)
+
+ggsave("Figures/hist_pop_den_raw.jpeg", height=4, width=6, units="in")
+
 print(p_hist_log)
+
+ggsave("Figures/hist_pop_den_log.jpeg", height=4, width=6, units="in")
 
 #    B) Empirical relationship: Pr(iNat) vs density (raw + log)
 p_prob_raw <- ggplot(PopData_obj2, aes(x = PopDensity, y = is_iNat)) +
@@ -874,6 +880,23 @@ print(p_prob_log)
 # -----------------------------
 # 5) Primary model (binomial GLM)
 # -----------------------------
+
+# compare models with and without population density log-transformed
+m_raw  <- glm(is_iNat ~ PopDensity, family = binomial, data = PopData_obj2)
+m_log  <- glm(is_iNat ~ LogPopDensity, family = binomial, data = PopData_obj2)
+
+AIC(m_raw, m_log)
+
+png("Figures/DHARMa_residuals_raw.png", width = 2000, height = 1500, res = 300)
+res <- simulateResiduals(m_raw)
+plot(res)
+dev.off()
+
+png("Figures/DHARMa_residuals_log.png", width = 2000, height = 1500, res = 300)
+res_log <- simulateResiduals(m_log)
+plot(res_log)
+dev.off()
+
 m_logit <- glm(is_iNat ~ LogPopDensity, data = PopData_obj2, family = binomial)
 summary(m_logit)
 
