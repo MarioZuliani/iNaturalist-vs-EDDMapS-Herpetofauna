@@ -8,6 +8,7 @@ library(units)
 library(ggplot2)
 library(fitdistrplus)
 library(tigris)     # pulls Florida boundary (can be swapped for your own polygon)
+library(DHARMa)
 options(tigris_use_cache = TRUE)
 
 # -----------------------------
@@ -226,6 +227,24 @@ grid_long <- grid_area_by_species |>
 # -----------------------------
 # 2) Base GLM: area ~ platform + log(obs)
 # -----------------------------
+
+# plot histogram
+ggplot(grid_long, aes(x = grid_area)) +
+  geom_histogram(position = "identity", alpha = 0.35, bins = 50) +
+  labs(x = "Grid-Range Area (km²)",
+       y = "Count") +
+  theme_classic()
+
+ggsave("Figures/grid_hist.jpeg", height=4, width=4, units="in")
+
+ggplot(grid_long, aes(x = obs_count)) +
+  geom_histogram(position = "identity", alpha = 0.35, bins = 50) +
+  labs(x = "Number of Observations",
+       y = "Count") +
+  theme_classic()
+
+ggsave("Figures/grid_hist_obs.jpeg", height=4, width=4, units="in")
+
 # check the response distribution
 hist(grid_long$log_grid_area)
 hist(grid_long$grid_area)
@@ -239,6 +258,45 @@ gofstat(list(fit_norm, fit_lnorm, fit_gamma))
 grid_obs_model <- glm(log_grid_area ~ Platform + log_obs_count, data = grid_long)
 summary(grid_obs_model)
 
+png("Figures/DHARMa_grid_log_area_log_obs.png", width = 2000, height = 1500, res = 300)
+grid1 <- simulateResiduals(grid_obs_model)
+plot(grid1)
+dev.off()
+
+grid_obs_model2 <- glm(grid_area ~ Platform + log_obs_count, data = grid_long)
+summary(grid_obs_model2)
+
+png("Figures/DHARMa_grid_area_log_obs.png", width = 2000, height = 1500, res = 300)
+grid2 <- simulateResiduals(grid_obs_model2)
+plot(grid2)
+dev.off()
+
+grid_obs_model3 <- glm(grid_area ~ Platform + log_obs_count, family=Gamma(link="log"), data = grid_long)
+summary(grid_obs_model3)
+
+png("Figures/DHARMa_grid_area_log_obs_gamma.png", width = 2000, height = 1500, res = 300)
+grid3 <- simulateResiduals(grid_obs_model3)
+plot(grid3)
+dev.off()
+
+grid_obs_model4 <- glm(log_grid_area ~ Platform + obs_count, data = grid_long)
+summary(grid_obs_model4)
+
+png("Figures/DHARMa_log_grid_area_obs.png", width = 2000, height = 1500, res = 300)
+grid4 <- simulateResiduals(grid_obs_model4)
+plot(grid4)
+
+grid_obs_model5 <- glm(grid_area ~ Platform + obs_count, family=Gamma(link="log"), data = grid_long)
+summary(grid_obs_model5)
+
+png("Figures/DHARMa_grid_area_obs_gamma.png", width = 2000, height = 1500, res = 300)
+grid5 <- simulateResiduals(grid_obs_model5)
+plot(grid5)
+dev.off()
+
+res_lmer <- simulateResiduals(lmer1)
+plot(res_lmer)
+
 # model testing
 plot(mcp_obs_model$fitted.values, resid(mcp_obs_model))
 abline(h = 0, lty = 2)
@@ -246,11 +304,31 @@ abline(h = 0, lty = 2)
 qqnorm(resid(mcp_obs_model))
 qqline(resid(mcp_obs_model))
 
+# FINAL model
+grid_obs_model <- glm(grid_area ~ Platform + log_obs_count, family=Gamma(link="log"), data = grid_long)
+summary(grid_obs_model)
+
 # -----------------------------
 # 3) Mixed-effects model (species random effect)
 # -----------------------------
 grid_obs_mixed_model <- lmer(log_grid_area ~ Platform + log_obs_count + (1|Species), data = grid_long)
 summary(grid_obs_mixed_model)
+
+# use GLMER so we can specify the family as Gamma with a log link based on model testing above
+library(glmmTMB)
+
+grid_obs_mixed_model <- glmmTMB(
+  grid_area ~ Platform + log_obs_count + (1 | Species),
+  family = Gamma(link = "log"),
+  data = grid_long
+)
+summary(grid_obs_mixed_model)
+
+png("Figures/DHARMa_grid_area_mm.png", width = 2000, height = 1500, res = 300)
+grid_mm <- simulateResiduals(grid_obs_mixed_model)
+plot(grid_mm)
+dev.off()
+
 
 # model testing
 plot(mcp_obs_mixed_model)

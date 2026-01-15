@@ -1163,6 +1163,23 @@ ggplot(long_data, aes(x = platform, y = mcp_area)) +
        y = "MCP Area (km²) - Log Scale") +
   theme_minimal()
 
+# make a histogram of data
+ggplot(long_data, aes(x = mcp_area)) +
+  geom_histogram(position = "identity", alpha = 0.35, bins = 50) +
+    labs(x = "MCP Area (km²)",
+       y = "Count") +
+  theme_classic()
+
+ggsave("Figures/mcp_hist.jpeg", height=4, width=4, units="in")
+
+ggplot(long_data, aes(x = obs_count)) +
+  geom_histogram(position = "identity", alpha = 0.35, bins = 50) +
+  labs(x = "Number of Observations",
+       y = "Count") +
+  theme_classic()
+
+ggsave("Figures/obs_hist.jpeg", height=4, width=4, units="in")
+
 library(lme4)
 
 # Mixed effects model with species as random effect
@@ -1187,18 +1204,78 @@ long_data <- long_data %>%
     log_obs_count = log10(obs_count)
   )
 
-# Model MCP area as function of platform while controlling for observation count
-mcp_obs_model <- glm(log_mcp_area ~ platform + log_obs_count, data = long_data)
+# Model MCP area as function of platform while controlling for observation count 
+# test different versions of this model
+mcp_obs_model_log <- glm(log_mcp_area ~ platform + log_obs_count, family=gaussian, data = long_data)
+summary(mcp_obs_model_log)
+
+png("Figures/DHARMa_mcp_log_response.png", width = 2000, height = 1500, res = 300)
+mcp_res <- simulateResiduals(mcp_obs_model_log)
+plot(mcp_res)
+dev.off()
+
+mcp_obs_model_gamma <- glm(mcp_area ~ platform + log_obs_count, family=Gamma(link="log"), data = long_data)
+summary(mcp_obs_model_gamma)
+
+png("Figures/DHARMa_mcp_gamma_log.png", width = 2000, height = 1500, res = 300)
+mcp_res_gamma <- simulateResiduals(mcp_obs_model_gamma)
+plot(mcp_res_gamma)
+dev.off()
+
+mcp_obs_model_no_log_count <- glm(mcp_area ~ platform + obs_count, family=gaussian, data = long_data)
+summary(mcp_obs_model_gamma)
+
+png("Figures/DHARMa_mcp_no_log_count.png", width = 2000, height = 1500, res = 300)
+mcp_res_no_log_count <- simulateResiduals(mcp_obs_model_no_log_count )
+plot(mcp_res_no_log_count)
+dev.off()
+
+# FINAL model
+mcp_obs_model <- glm(mcp_area ~ platform + log_obs_count, data = long_data, family=gaussian)
 summary(mcp_obs_model)
 
+png("Figures/DHARMa_mcp_best_model.png", width = 2000, height = 1500, res = 300)
+mcp_res <- simulateResiduals(mcp_obs_model)
+plot(mcp_res)
+dev.off()
+
+# what does a 10% increase in observations do?
+beta <- coef(mcp_obs_model)["log_obs_count"]
+
+delta_mcp_10pct <- beta * log(1.10)
+delta_mcp_10pct
+
+beta_ci <- confint(mcp_obs_model)["log_obs_count", ]
+
+delta_ci_10pct <- beta_ci * log(1.10)
+delta_ci_10pct
+
 # Mixed effects version
-mcp_obs_mixed_model <- lmer(log_mcp_area ~ platform + log_obs_count + (1|Species), data = long_data)
+mcp_obs_mixed_model <- lmer(mcp_area ~ platform + log_obs_count + (1|Species), data = long_data)
 summary(mcp_obs_mixed_model)
 
+png("Figures/DHARMa_mcp_mixed_effects.png", width = 2000, height = 1500, res = 300)
+mcp_res_me <- simulateResiduals(mcp_obs_mixed_model)
+plot(mcp_res_me)
+dev.off()
+
+# compute ICC
+var_species <- 2.932e+08
+var_resid   <- 1.269e+09
+
+ICC <- var_species / (var_species + var_resid)
+ICC
+
+# check singular fits
+lme4::isSingular(mcp_obs_mixed_model)
+
 # Test for interaction between platform and observation count
-mcp_interaction_model <- glm(log_mcp_area ~ platform * log_obs_count, data = long_data)
+mcp_interaction_model <- glm(mcp_area ~ platform * log_obs_count, data = long_data)
 summary(mcp_interaction_model)
 anova(mcp_obs_model, mcp_interaction_model)  # Test if interaction improves model
+
+mcp_res_int <- simulateResiduals(mcp_interaction_model)
+plot(mcp_res_int)
 
 # Visualize relationships
 ggplot(long_data, aes(x = log_obs_count, y = log_mcp_area, color = platform)) +
