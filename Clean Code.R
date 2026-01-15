@@ -357,6 +357,142 @@ ggplot(presence_summary, aes(x = "", y = n, fill = Category)) +
 
 
 
+# ============================================================
+# Obj 1 Results stats: Top 5 species + singletons (UPDATED)
+# Uses:
+#   filtered_data_iNat_florida
+#   filtered_data_eddmaps_florida
+# ============================================================
+
+library(dplyr)
+library(stringr)
+library(readr)
+
+# helper (optional): ensure binomial formatting, consistent with earlier cleaning
+to_binom <- function(x) str_extract(x, "^\\S+\\s+\\S+")
+
+inat_counts <- filtered_data_iNat_florida %>%
+  mutate(species = to_binom(species)) %>%
+  count(species, name = "N") %>%
+  arrange(desc(N))
+
+edd_counts <- filtered_data_eddmaps_florida %>%
+  mutate(species = to_binom(species)) %>%
+  count(species, name = "N") %>%
+  arrange(desc(N))
+
+# ---- Top 5 most observed (each platform)
+inat_top5 <- inat_counts %>% slice_head(n = 5)
+edd_top5  <- edd_counts  %>% slice_head(n = 5)
+
+print(inat_top5)
+print(edd_top5)
+
+# ---- Singleton species (reported exactly once)
+inat_singletons_n <- inat_counts %>% filter(N == 1) %>% nrow()
+edd_singletons_n  <- edd_counts  %>% filter(N == 1) %>% nrow()
+
+cat("\nSingleton species counts:\n")
+cat("  iNaturalist singletons (N==1): ", inat_singletons_n, "\n")
+cat("  EDDMapS singletons (N==1):     ", edd_singletons_n, "\n")
+
+
+
+
+
+
+
+# ========================
+# Obj 1: How many Reps and Amphib per platform
+# Uses:
+#   - presence_df (the one you built from filtered_data_* tables)
+#   - iNaturalist_introduced + eddmaps_introduced_clean (with a 'taxon' column)
+# ========================
+
+library(dplyr)
+library(stringr)
+
+# ---- helper: force binomial (Genus species)
+to_binom <- function(x) str_extract(x, "^\\S+\\s+\\S+")
+
+# ---- Taxonomic groups from iNat introduced list ----
+taxon_groups_iNat <- iNaturalist_introduced %>%
+  transmute(
+    Species = to_binom(scientific_name),
+    group   = case_when(
+      taxon == "Amphibia" ~ "Amphibian",
+      taxon == "Reptilia" ~ "Reptile",
+      TRUE                ~ NA_character_
+    )
+  ) %>%
+  distinct() %>%
+  filter(!is.na(Species))
+
+# ---- Taxonomic groups from EDDMapS introduced list ----
+taxon_groups_edd <- eddmaps_introduced_clean %>%
+  transmute(
+    Species = to_binom(scientific_name),
+    group   = case_when(
+      taxon == "Amphibia" ~ "Amphibian",
+      taxon == "Reptilia" ~ "Reptile",
+      TRUE                ~ NA_character_
+    )
+  ) %>%
+  distinct() %>%
+  filter(!is.na(Species))
+
+# ---- Combine into a master lookup (prefer first non-NA group) ----
+all_groups <- bind_rows(taxon_groups_iNat, taxon_groups_edd) %>%
+  group_by(Species) %>%
+  summarise(
+    group = {
+      g <- unique(na.omit(group))
+      if (length(g) == 0) NA_character_ else g[1]
+    },
+    .groups = "drop"
+  )
+
+# ---- Use your NEW presence_df (already cleaned to binomial) ----
+# presence_df columns: Species, iNaturalist, EDDMapS  (Yes/No)
+
+species_groups <- presence_df %>%
+  mutate(Species = to_binom(Species)) %>%
+  left_join(all_groups, by = "Species")
+
+# sanity check
+cat("Species in presence_df:", nrow(presence_df), "\n")
+cat("Species classified (have group):", sum(!is.na(species_groups$group)), "\n")
+cat("Unclassified species:", sum(is.na(species_groups$group)), "\n")
+
+# ---- iNaturalist: # reptile vs amphibian species ----
+inat_species_counts <- species_groups %>%
+  filter(iNaturalist == "Yes", !is.na(group)) %>%
+  count(group, name = "n_species") %>%
+  mutate(prop_species = n_species / sum(n_species))
+
+inat_species_counts
+
+# ---- EDDMapS: # reptile vs amphibian species ----
+eddmaps_species_counts <- species_groups %>%
+  filter(EDDMapS == "Yes", !is.na(group)) %>%
+  count(group, name = "n_species") %>%
+  mutate(prop_species = n_species / sum(n_species))
+
+eddmaps_species_counts
+
+# ---- Either platform (union): # reptile vs amphibian species ----
+both_species_counts <- species_groups %>%
+  filter((iNaturalist == "Yes" | EDDMapS == "Yes"), !is.na(group)) %>%
+  count(group, name = "n_species") %>%
+  mutate(prop_species = n_species / sum(n_species))
+
+both_species_counts
+
+
+
+
+
+
 
 
 
@@ -523,14 +659,14 @@ body_mass_glm <- glm(prop_ratio ~ log_body_size, data=trait_inat_eddmaps_clean, 
 summary(body_mass_glm)
 plot(body_mass_glm)
 
-(body_size <- ggplot(trait_inat_eddmaps_clean, aes(x = `Maximum body mass (g)`, y = prop_ratio)) +
+body_size <- ggplot(trait_inat_eddmaps_clean, aes(x = `Maximum body mass (g)`, y = prop_ratio)) +
   geom_point() +
   scale_x_log10(labels = trans_format("log10", math_format(10^.x))) +
   geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
   geom_smooth(method = "lm", se = TRUE, color = "blue") +
   labs(y = "Log-proportional ratio of observations\n(iNaturalist / EDDMapS)",
        title="B.") + 
-  theme_classic(base_size = 14))
+  theme_classic(base_size = 14)
 
 # now let's do this for habitat type
 # this column is going to have to be restructured
@@ -1253,83 +1389,7 @@ Fig_1_Line_with_exclusive_highlights
 
 
 
-# ========================
-# Splitting by Rep and Amphib
-# ========================
 
-# ---- Taxonomic groups from iNat introduced list ----
-taxon_groups_iNat <- iNaturalist_introduced %>%
-  transmute(
-    Species = scientific_name,
-    group   = case_when(
-      taxon == "Amphibia" ~ "Amphibian",
-      taxon == "Reptilia" ~ "Reptile",
-      TRUE                ~ NA_character_
-    )
-  ) %>%
-  distinct()
-
-# ---- Taxonomic groups from EDDMapS introduced list ----
-taxon_groups_edd <- eddmaps_introduced_clean %>%
-  transmute(
-    Species = scientific_name,
-    group   = case_when(
-      taxon == "Amphibia" ~ "Amphibian",
-      taxon == "Reptilia" ~ "Reptile",
-      TRUE                ~ NA_character_
-    )
-  ) %>%
-  distinct()
-
-# ---- Combine into a master lookup ----
-all_groups <- bind_rows(taxon_groups_iNat, taxon_groups_edd) %>%
-  group_by(Species) %>%
-  summarise(
-    group = {
-      g <- unique(na.omit(group))
-      if (length(g) == 0) NA_character_ else g[1]
-    },
-    .groups = "drop"
-  )
-
-presence <- read.csv("Data/species_presence_comparison.csv")
-presence <- presence %>%
-  filter(!(Species %in% "Basiliscus spp.")) %>%
-  filter(!(Species %in% "Iguana spp.")) %>%
-  filter(!(Species %in% "Leiocephalus spp.")) %>%
-  filter(!(Species %in% "Python spp.")) %>%
-  filter(!(Species %in% "Trioceros spp.")) %>%
-  rename(iNaturalist = iNaturalist_Present) %>%
-  rename(EDDMapS = EDDMapS_Present)
-
-# ---- Attach reptile/amphibian group to presence table ----
-species_groups <- presence %>%
-  left_join(all_groups, by = "Species")
-# Columns: Species, iNaturalist, EDDMapS, group
-
-# ---- iNaturalist: number of reptile vs amphibian species ----
-inat_species_counts <- species_groups %>%
-  filter(iNaturalist == "Yes", !is.na(group)) %>%
-  count(group, name = "n_species") %>%
-  mutate(prop_species = n_species / sum(n_species))
-
-inat_species_counts
-
-# ---- EDDMapS: number of reptile vs amphibian species ----
-eddmaps_species_counts <- species_groups %>%
-  filter(EDDMapS == "Yes", !is.na(group)) %>%
-  count(group, name = "n_species") %>%
-  mutate(prop_species = n_species / sum(n_species))
-
-eddmaps_species_counts
-
-both_species_counts <- species_groups %>%
-  filter((iNaturalist == "Yes" | EDDMapS == "Yes"),
-         !is.na(group)) %>%
-  count(group, name = "n_species") %>%
-  mutate(prop_species = n_species / sum(n_species))
-
-both_species_counts
 
 
 
@@ -1417,3 +1477,18 @@ inat_removed_summary <- tibble(
 )
 
 inat_removed_summary
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
