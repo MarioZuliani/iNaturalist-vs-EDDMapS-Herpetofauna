@@ -562,7 +562,7 @@ nrow(trait_inat_eddmaps_clean %>% filter(!is.na(`Habitat type`) | !is.na(`Active
 
 # how many amphibian species do we have habitat data on?
 nrow(trait_inat_eddmaps_clean %>% filter(!is.na(Fos) | !is.na(Ter) | !is.na(Aqu) | !is.na(Arb)))
-# only 7, so let's focus the habitat analysis only on reptiles
+# only 7, so let's focus the habitat analysis only on reptiles 
 
 # now, we will use our earlier spearman's rank correlation to assess these different categories
 
@@ -605,7 +605,22 @@ trait_inat_eddmaps_clean <- trait_inat_eddmaps_clean %>%
     prop_ratio = log10(inat_prop / eddmaps_prop)
   )
 
-hist(trait_inat_eddmaps_clean$prop_ratio)
+# make a histogram of data
+ggplot(trait_inat_eddmaps_clean, aes(x = prop_ratio)) +
+  geom_histogram(position = "identity", alpha = 0.35, bins = 50) +
+  labs(x = "Log-proportional ratio of observations\n(iNaturalist / EDDMapS)",
+       y = "Count") +
+  theme_classic()
+
+ggsave("Figures/log-proportional-obs-hist.jpeg", height=4, width=4, units="in")
+
+ggplot(trait_inat_eddmaps_clean, aes(x = `Maximum body mass (g)`)) +
+  geom_histogram(position = "identity", alpha = 0.35, bins = 50) +
+  labs(x = "Maximum body mass (g)",
+       y = "Count") +
+  theme_classic()
+
+ggsave("Figures/body-mass-hist.jpeg", height=4, width=4, units="in")
 
 # examine raw data
 (activity <- ggplot(trait_inat_eddmaps_clean %>% filter(complete.cases(`Active time`), `Active time`!="Crepuscular"), aes(x=`Active time`, y=prop_ratio)) +
@@ -619,11 +634,26 @@ hist(trait_inat_eddmaps_clean$prop_ratio)
 glm_diurnal <- glm(prop_ratio ~ 1, data = subset(trait_inat_eddmaps_clean, `Active time` == "Diurnal"))
 summary(glm_diurnal)
 
+png("Figures/DHARMa_residuals_diurnal.png", width = 2000, height = 1500, res = 300)
+res <- simulateResiduals(glm_diurnal)
+plot(res)
+dev.off()
+
 glm_nocturnal <- glm(prop_ratio ~ 1, data = subset(trait_inat_eddmaps_clean, `Active time` == "Nocturnal"))
 summary(glm_nocturnal)
 
+png("Figures/DHARMa_residuals_nocturnal.png", width = 2000, height = 1500, res = 300)
+res <- simulateResiduals(glm_nocturnal)
+plot(res)
+dev.off()
+
 glm_cathemeral <- glm(prop_ratio ~ 1, data = subset(trait_inat_eddmaps_clean, `Active time` == "Cathemeral"))
 summary(glm_cathemeral)
+
+png("Figures/DHARMa_residuals_cathemeral.png", width = 2000, height = 1500, res = 300)
+res <- simulateResiduals(glm_cathemeral)
+plot(res)
+dev.off()
 
 # Get estimates
 coefs <- tibble(
@@ -660,6 +690,20 @@ trait_inat_eddmaps_clean$log_body_size <- log10(trait_inat_eddmaps_clean$`Maximu
 body_mass_glm <- glm(prop_ratio ~ log_body_size, data=trait_inat_eddmaps_clean, family = gaussian)
 summary(body_mass_glm)
 plot(body_mass_glm)
+
+png("Figures/DHARMa_residuals_log_body_mass.png", width = 2000, height = 1500, res = 300)
+res <- simulateResiduals(body_mass_glm)
+plot(res)
+dev.off()
+
+body_mass_glm_nl <- glm(prop_ratio ~ `Maximum body mass (g)`, data=trait_inat_eddmaps_clean, family = gaussian)
+summary(body_mass_glm_nl)
+plot(body_mass_glm_nl)
+
+png("Figures/DHARMa_residuals_body_mass.png", width = 2000, height = 1500, res = 300)
+res <- simulateResiduals(body_mass_glm_nl)
+plot(res)
+dev.off()
 
 body_size <- ggplot(trait_inat_eddmaps_clean, aes(x = `Maximum body mass (g)`, y = prop_ratio)) +
   geom_point() +
@@ -723,6 +767,11 @@ habitats_filtered
 habitat_glm <- glm(prop_ratio ~ Savanna + Forest + Shrubland + Grassland + Wetlands + Rocky, 
                    data=trait_habitat, family = gaussian)
 summary(habitat_glm)
+
+png("Figures/DHARMa_residuals_habitat.png", width = 2000, height = 1500, res = 300)
+res <- simulateResiduals(habitat_glm)
+plot(res)
+dev.off()
 
 # examine raw data
 # Gather habitats into long format
