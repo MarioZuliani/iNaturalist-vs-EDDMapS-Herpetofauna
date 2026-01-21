@@ -269,6 +269,29 @@ Fig_1_Line <- ggplot(iNatandEddMap_both, aes(x = inat_number_of_obs, y = eddmaps
 
 Fig_1_Line
 
+# make histogram of the data
+iNatandEddMap_both %>%
+  pivot_longer(
+    cols = c(inat_number_of_obs, eddmaps_number_of_obs),
+    names_to = "platform",
+    values_to = "number_of_obs"
+  ) %>%
+  mutate(
+    platform = case_when(
+      platform == "inat_number_of_obs" ~ "iNaturalist",
+      platform == "eddmaps_number_of_obs" ~ "EDDMapS"
+    )
+  ) %>%
+  ggplot(., aes(x = number_of_obs, fill = platform)) +
+  geom_histogram(position = "identity", alpha = 0.35, bins = 50) +
+  scale_fill_manual(values = c("EDDMapS" = "#FD7B25", "iNaturalist" = "#A7FD25")) +
+  labs(x = "Number of observations",
+       y = "Count",
+       fill = "Platform") +
+  theme_classic()
+
+ggsave("Figures/hist_num_of_obs.jpeg", height=5, width=6, units="in")
+
 # --- comparison of iNaturalist and eddmaps counts (NEW) ---
 model_nb_log <- MASS::glm.nb(eddmaps_number_of_obs ~ log(inat_number_of_obs + 1),
                              data = iNatandEddMap_both)
@@ -1583,7 +1606,12 @@ edd_removed_summary <- tibble(
   
   # With NA-kept logic:
   removed_uncertainty_NA = 0,
-  removed_uncertainty_gt1000 = sum(edd_pre_unc$coordinateUncertaintyInMeters > 1000, na.rm = TRUE)
+  removed_uncertainty_gt1000 = sum(edd_pre_unc$coordinateUncertaintyInMeters > 1000, na.rm = TRUE),
+  
+  
+  # Get number of species before and after
+  n_sp_before = length(unique(edd_pre_unc$SciName)),
+  n_sp_after = length(unique(filtered_data_eddmaps$SciName))
 )
 
 edd_removed_summary
@@ -1622,7 +1650,11 @@ inat_removed_summary <- tibble(
   
   # With NA-kept logic, these are not removed due to uncertainty:
   removed_uncertainty_NA = 0,
-  removed_uncertainty_gt1000 = sum(iNat_pre_unc$coordinateUncertaintyInMeters > 1000, na.rm = TRUE)
+  removed_uncertainty_gt1000 = sum(iNat_pre_unc$coordinateUncertaintyInMeters > 1000, na.rm = TRUE),
+  
+  # Get number of species before and after
+  n_sp_before = length(unique(iNat_pre_unc$species)),
+  n_sp_after = length(unique(filtered_data_iNat$species))
 )
 
 inat_removed_summary
