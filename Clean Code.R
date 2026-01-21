@@ -269,6 +269,29 @@ Fig_1_Line <- ggplot(iNatandEddMap_both, aes(x = inat_number_of_obs, y = eddmaps
 
 Fig_1_Line
 
+# make histogram of the data
+iNatandEddMap_both %>%
+  pivot_longer(
+    cols = c(inat_number_of_obs, eddmaps_number_of_obs),
+    names_to = "platform",
+    values_to = "number_of_obs"
+  ) %>%
+  mutate(
+    platform = case_when(
+      platform == "inat_number_of_obs" ~ "iNaturalist",
+      platform == "eddmaps_number_of_obs" ~ "EDDMapS"
+    )
+  ) %>%
+  ggplot(., aes(x = number_of_obs, fill = platform)) +
+  geom_histogram(position = "identity", alpha = 0.35, bins = 50) +
+  scale_fill_manual(values = c("EDDMapS" = "#FD7B25", "iNaturalist" = "#A7FD25")) +
+  labs(x = "Number of observations",
+       y = "Count",
+       fill = "Platform") +
+  theme_classic()
+
+ggsave("Figures/hist_num_of_obs.jpeg", height=5, width=6, units="in")
+
 # --- comparison of iNaturalist and eddmaps counts (NEW) ---
 model_nb_log <- MASS::glm.nb(eddmaps_number_of_obs ~ log(inat_number_of_obs + 1),
                              data = iNatandEddMap_both)
@@ -562,7 +585,7 @@ nrow(trait_inat_eddmaps_clean %>% filter(!is.na(`Habitat type`) | !is.na(`Active
 
 # how many amphibian species do we have habitat data on?
 nrow(trait_inat_eddmaps_clean %>% filter(!is.na(Fos) | !is.na(Ter) | !is.na(Aqu) | !is.na(Arb)))
-# only 7, so let's focus the habitat analysis only on reptiles
+# only 7, so let's focus the habitat analysis only on reptiles 
 
 # now, we will use our earlier spearman's rank correlation to assess these different categories
 
@@ -605,7 +628,22 @@ trait_inat_eddmaps_clean <- trait_inat_eddmaps_clean %>%
     prop_ratio = log10(inat_prop / eddmaps_prop)
   )
 
-hist(trait_inat_eddmaps_clean$prop_ratio)
+# make a histogram of data
+ggplot(trait_inat_eddmaps_clean, aes(x = prop_ratio)) +
+  geom_histogram(position = "identity", alpha = 0.35, bins = 50) +
+  labs(x = "Log-proportional ratio of observations\n(iNaturalist / EDDMapS)",
+       y = "Count") +
+  theme_classic()
+
+ggsave("Figures/log-proportional-obs-hist.jpeg", height=4, width=4, units="in")
+
+ggplot(trait_inat_eddmaps_clean, aes(x = `Maximum body mass (g)`)) +
+  geom_histogram(position = "identity", alpha = 0.35, bins = 50) +
+  labs(x = "Maximum body mass (g)",
+       y = "Count") +
+  theme_classic()
+
+ggsave("Figures/body-mass-hist.jpeg", height=4, width=4, units="in")
 
 # examine raw data
 (activity <- ggplot(trait_inat_eddmaps_clean %>% filter(complete.cases(`Active time`), `Active time`!="Crepuscular"), aes(x=`Active time`, y=prop_ratio)) +
@@ -619,11 +657,26 @@ hist(trait_inat_eddmaps_clean$prop_ratio)
 glm_diurnal <- glm(prop_ratio ~ 1, data = subset(trait_inat_eddmaps_clean, `Active time` == "Diurnal"))
 summary(glm_diurnal)
 
+png("Figures/DHARMa_residuals_diurnal.png", width = 2000, height = 1500, res = 300)
+res <- simulateResiduals(glm_diurnal)
+plot(res)
+dev.off()
+
 glm_nocturnal <- glm(prop_ratio ~ 1, data = subset(trait_inat_eddmaps_clean, `Active time` == "Nocturnal"))
 summary(glm_nocturnal)
 
+png("Figures/DHARMa_residuals_nocturnal.png", width = 2000, height = 1500, res = 300)
+res <- simulateResiduals(glm_nocturnal)
+plot(res)
+dev.off()
+
 glm_cathemeral <- glm(prop_ratio ~ 1, data = subset(trait_inat_eddmaps_clean, `Active time` == "Cathemeral"))
 summary(glm_cathemeral)
+
+png("Figures/DHARMa_residuals_cathemeral.png", width = 2000, height = 1500, res = 300)
+res <- simulateResiduals(glm_cathemeral)
+plot(res)
+dev.off()
 
 # Get estimates
 coefs <- tibble(
@@ -660,6 +713,20 @@ trait_inat_eddmaps_clean$log_body_size <- log10(trait_inat_eddmaps_clean$`Maximu
 body_mass_glm <- glm(prop_ratio ~ log_body_size, data=trait_inat_eddmaps_clean, family = gaussian)
 summary(body_mass_glm)
 plot(body_mass_glm)
+
+png("Figures/DHARMa_residuals_log_body_mass.png", width = 2000, height = 1500, res = 300)
+res <- simulateResiduals(body_mass_glm)
+plot(res)
+dev.off()
+
+body_mass_glm_nl <- glm(prop_ratio ~ `Maximum body mass (g)`, data=trait_inat_eddmaps_clean, family = gaussian)
+summary(body_mass_glm_nl)
+plot(body_mass_glm_nl)
+
+png("Figures/DHARMa_residuals_body_mass.png", width = 2000, height = 1500, res = 300)
+res <- simulateResiduals(body_mass_glm_nl)
+plot(res)
+dev.off()
 
 body_size <- ggplot(trait_inat_eddmaps_clean, aes(x = `Maximum body mass (g)`, y = prop_ratio)) +
   geom_point() +
@@ -723,6 +790,11 @@ habitats_filtered
 habitat_glm <- glm(prop_ratio ~ Savanna + Forest + Shrubland + Grassland + Wetlands + Rocky, 
                    data=trait_habitat, family = gaussian)
 summary(habitat_glm)
+
+png("Figures/DHARMa_residuals_habitat.png", width = 2000, height = 1500, res = 300)
+res <- simulateResiduals(habitat_glm)
+plot(res)
+dev.off()
 
 # examine raw data
 # Gather habitats into long format
@@ -1538,7 +1610,12 @@ edd_removed_summary <- tibble(
   
   # With NA-kept logic:
   removed_uncertainty_NA = 0,
-  removed_uncertainty_gt1000 = sum(edd_pre_unc$coordinateUncertaintyInMeters > 1000, na.rm = TRUE)
+  removed_uncertainty_gt1000 = sum(edd_pre_unc$coordinateUncertaintyInMeters > 1000, na.rm = TRUE),
+  
+  
+  # Get number of species before and after
+  n_sp_before = length(unique(edd_pre_unc$SciName)),
+  n_sp_after = length(unique(filtered_data_eddmaps$SciName))
 )
 
 edd_removed_summary
@@ -1577,7 +1654,11 @@ inat_removed_summary <- tibble(
   
   # With NA-kept logic, these are not removed due to uncertainty:
   removed_uncertainty_NA = 0,
-  removed_uncertainty_gt1000 = sum(iNat_pre_unc$coordinateUncertaintyInMeters > 1000, na.rm = TRUE)
+  removed_uncertainty_gt1000 = sum(iNat_pre_unc$coordinateUncertaintyInMeters > 1000, na.rm = TRUE),
+  
+  # Get number of species before and after
+  n_sp_before = length(unique(iNat_pre_unc$species)),
+  n_sp_after = length(unique(filtered_data_iNat$species))
 )
 
 inat_removed_summary
