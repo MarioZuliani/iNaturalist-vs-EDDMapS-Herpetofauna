@@ -1336,8 +1336,8 @@ plot(mcp_res_me)
 dev.off()
 
 # compute ICC
-var_species <- 2.932e+08
-var_resid   <- 1.269e+09
+var_species <- 2.104e+08
+var_resid   <- 1.388e+09
 
 ICC <- var_species / (var_species + var_resid)
 ICC

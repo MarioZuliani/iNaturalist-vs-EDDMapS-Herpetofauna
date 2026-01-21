@@ -9,6 +9,7 @@ library(ggplot2)
 library(fitdistrplus)
 library(tigris)     # pulls Florida boundary (can be swapped for your own polygon)
 library(DHARMa)
+library(glmmTMB)
 options(tigris_use_cache = TRUE)
 
 
@@ -300,9 +301,6 @@ grid5 <- simulateResiduals(grid_obs_model5)
 plot(grid5)
 dev.off()
 
-res_lmer <- simulateResiduals(lmer1)
-plot(res_lmer)
-
 # model testing
 plot(mcp_obs_model$fitted.values, resid(mcp_obs_model))
 abline(h = 0, lty = 2)
@@ -311,7 +309,7 @@ qqnorm(resid(mcp_obs_model))
 qqline(resid(mcp_obs_model))
 
 # FINAL model
-grid_obs_model <- glm(grid_area ~ Platform + log_obs_count, family=Gamma(link="log"), data = grid_long)
+grid_obs_model <- glm(log(grid_area) ~ Platform + log_obs_count, family=gaussian, data = grid_long)
 summary(grid_obs_model)
 
 # -----------------------------
@@ -320,15 +318,8 @@ summary(grid_obs_model)
 grid_obs_mixed_model <- lmer(log_grid_area ~ Platform + log_obs_count + (1|Species), data = grid_long)
 summary(grid_obs_mixed_model)
 
-# use GLMER so we can specify the family as Gamma with a log link based on model testing above
-library(glmmTMB)
-
-grid_obs_mixed_model <- glmmTMB(
-  grid_area ~ Platform + log_obs_count + (1 | Species),
-  family = Gamma(link = "log"),
-  data = grid_long
-)
-summary(grid_obs_mixed_model)
+# check singular fits
+lme4::isSingular(grid_obs_mixed_model)
 
 png("Figures/DHARMa_grid_area_mm.png", width = 2000, height = 1500, res = 300)
 grid_mm <- simulateResiduals(grid_obs_mixed_model)
