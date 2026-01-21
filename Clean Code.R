@@ -947,12 +947,15 @@ library(adehabitatHR)
 library(sf)     # For spatial operations
 library(units)  # For unit conversion
 
-# Process EDDMapS data
-filtered_data_eddmaps_florida2 <- filtered_data_eddmaps_florida %>% filter(Year >= 2014 & Year <= 2024)
+# Apply coordinate uncertainty filter for MCP (Obj 3)
+filtered_data_eddmaps_florida2 <- filtered_data_eddmaps_florida %>%
+  filter(is.na(coordinateUncertaintyInMeters) | coordinateUncertaintyInMeters <= 1000) %>%
+  filter(Year >= 2014 & Year <= 2024)
 
+filtered_data_iNat_florida2 <- filtered_data_iNat_florida %>%
+  filter(is.na(coordinateUncertaintyInMeters) | coordinateUncertaintyInMeters <= 1000) %>%
+  filter(Year >= 2014 & Year <= 2024)
 
-# Process iNaturalist data
-filtered_data_iNat_florida2 <- filtered_data_iNat_florida %>% filter(Year >= 2014 & Year <= 2024)
 
 
 # Function to calculate 95% MCP area in square kilometers
@@ -1172,13 +1175,7 @@ ggplot(long_data, aes(x = mcp_area)) +
 
 ggsave("Figures/mcp_hist.jpeg", height=4, width=4, units="in")
 
-ggplot(long_data, aes(x = obs_count)) +
-  geom_histogram(position = "identity", alpha = 0.35, bins = 50) +
-  labs(x = "Number of Observations",
-       y = "Count") +
-  theme_classic()
 
-ggsave("Figures/obs_hist.jpeg", height=4, width=4, units="in")
 
 library(lme4)
 
@@ -1204,6 +1201,13 @@ long_data <- long_data %>%
     log_obs_count = log10(obs_count)
   )
 
+ggplot(long_data, aes(x = obs_count)) +
+  geom_histogram(position = "identity", alpha = 0.35, bins = 50) +
+  labs(x = "Number of Observations",
+       y = "Count") +
+  theme_classic()
+
+ggsave("Figures/obs_hist.jpeg", height=4, width=4, units="in")
 # Model MCP area as function of platform while controlling for observation count 
 # test different versions of this model
 mcp_obs_model_log <- glm(log_mcp_area ~ platform + log_obs_count, family=gaussian, data = long_data)

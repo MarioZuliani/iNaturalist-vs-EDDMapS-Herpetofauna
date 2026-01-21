@@ -11,17 +11,22 @@ library(tigris)     # pulls Florida boundary (can be swapped for your own polygo
 library(DHARMa)
 options(tigris_use_cache = TRUE)
 
-# -----------------------------
-# 0) Inputs you already have
-# -----------------------------
-# Re-use your cleaned, Florida-filtered, year-filtered point tables:
-#   filtered_data_iNat_florida2      (cols: species, Latitude, Longitude, Year, source="iNaturalist")
-#   filtered_data_eddmaps_florida2   (cols: species, Latitude, Longitude, Year, source="EDDMapS")
-#
-# If they are not in memory, source your previous prep script first.
 
-stopifnot(all(c("species","Latitude","Longitude") %in% names(filtered_data_iNat_florida2)))
-stopifnot(all(c("species","Latitude","Longitude") %in% names(filtered_data_eddmaps_florida2)))
+# -----------------------------
+# 0) Inputs (apply 1000 m filter HERE for this script)
+# -----------------------------
+# Use the Florida-filtered tables as the base (the ones you already have)
+# and apply the same coordinate uncertainty filter used elsewhere.
+
+inat_grid <- filtered_data_iNat_florida2 %>%
+  filter(is.na(coordinateUncertaintyInMeters) | coordinateUncertaintyInMeters <= 1000)
+
+edd_grid <- filtered_data_eddmaps_florida2 %>%
+  filter(is.na(coordinateUncertaintyInMeters) | coordinateUncertaintyInMeters <= 1000)
+
+stopifnot(all(c("species","Latitude","Longitude") %in% names(inat_grid)))
+stopifnot(all(c("species","Latitude","Longitude") %in% names(edd_grid)))
+
 
 # -----------------------------
 # 1) Florida polygon (equal-area)
@@ -61,8 +66,9 @@ to_points_sf <- function(df) {
     st_transform(ea_crs)
 }
 
-inat_pts_ea    <- to_points_sf(filtered_data_iNat_florida2)    |> mutate(platform = "iNaturalist")
-eddmaps_pts_ea <- to_points_sf(filtered_data_eddmaps_florida2) |> mutate(platform = "EDDMapS")
+inat_pts_ea    <- to_points_sf(inat_grid) |> mutate(platform = "iNaturalist")
+eddmaps_pts_ea <- to_points_sf(edd_grid)  |> mutate(platform = "EDDMapS")
+
 
 # (Optional) drop exact duplicate coordinates within species × platform to reduce bias
 dedupe_points <- function(sf_pts) {
